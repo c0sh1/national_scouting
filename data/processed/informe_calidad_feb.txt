@@ -1,0 +1,26 @@
+Filas jugador-temporada: 8136
+Jugadores distintos: 3114
+
+Por competición (nacionales = proporción de filas):
+             filas  jugadores  nacionales
+competicion                              
+liga_u         178        178       0.708
+primera_feb   3741       1532       0.561
+segunda_feb   4217       2066       0.670
+
+Ceros rellenados por estadística (jugador con minutos que no sale en el ranking):
+puntos               0
+reb_of              29
+reb_def              1
+asistencias         23
+recuperaciones      20
+perdidas             5
+tapones_favor     1707
+valoracion           9
+
+Porcentaje de filas sin datos de tiro (pocos intentos):
+  t2: 27.0%
+  t3: 30.8%
+  tl: 65.5%
+
+Sin problemas de calidad detectados.
