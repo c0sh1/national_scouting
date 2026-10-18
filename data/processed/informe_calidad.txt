@@ -1,0 +1,9 @@
+Jugadores: 2284
+Filas jugador-temporada: 7272
+Temporadas cubiertas: 1988 - 2026
+Jugadores con nacionalidad española: 554
+Jugadores con licencia JFL: 519
+Jugadores sin licencia leída: 0
+
+Problemas de calidad:
+- 41 filas donde victorias + derrotas no coincide con partidos
