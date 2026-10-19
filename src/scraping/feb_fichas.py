@@ -15,12 +15,12 @@ BASE = "https://baloncestoenvivo.feb.es"
 CARPETA_RAW = Path("data/raw")
 CARPETA_RANKINGS = CARPETA_RAW / "html_feb"
 CARPETA_FICHAS = CARPETA_RAW / "html_feb_fichas"
-
+ARCHIVO_ENLACES = CARPETA_RAW / "feb_enlaces_fichas.csv"
 RE_ENLACE = re.compile(r"Jugador\.aspx\?i=(\d+)&(?:amp;)?c=(\d+)")
 RE_TEMPORADA = re.compile(r"^\d{2}/\d{2}$")
 
 
-ARCHIVO_ENLACES = CARPETA_RAW / "feb_enlaces_fichas.csv"
+
 
 
 def enlaces_desde_cache(carpeta=CARPETA_RANKINGS, archivo=ARCHIVO_ENLACES):

@@ -9,6 +9,7 @@ CARPETA_PROCESSED = Path("data/processed")
 HORIZONTE = 3
 MIN_PARTIDOS = 15
 MIN_MINUTOS = 15
+MIN_MINUTOS_FEB = 100
 COMPETICIONES_ENTRENAMIENTO = ["primera_feb", "segunda_feb"]
 
 VARIABLES_EVOLUCION = ["minutos_partido", "puntos_40", "rebotes_40", "asistencias_40", "valoracion_40"]
@@ -34,7 +35,10 @@ def definir_objetivo(filas, temporadas_acb, ultima_temporada_acb, horizonte=HORI
         completo = fila["temporada"] + horizonte <= ultima_temporada_acb
         return pd.Series({
             "ya_asentado_antes": antes,
-            "se_asienta": int(despues) if (completo or despues) else pd.NA,
+            # Sin horizonte completo no hay objetivo, aunque ya se haya asentado:
+            # en esas temporadas solo se podrían etiquetar los positivos, y
+            # entrenar con ellas sesgaría el modelo hacia las más recientes.
+            "se_asienta": int(despues) if completo else pd.NA,
         })
 
     return filas.join(filas.apply(desenlace, axis=1))
@@ -59,13 +63,21 @@ def anadir_evolucion(tabla):
     return tabla.merge(evolucion, on=["id_feb", "temporada"], how="left")
 
 
-def construir(feb_temporadas, fichas, temporadas_acb, emparejamiento, ultima_temporada_acb):
+def construir(feb_temporadas, fichas, temporadas_acb, emparejamiento, ultima_temporada_acb,
+              horizonte=HORIZONTE, min_partidos=MIN_PARTIDOS, min_minutos=MIN_MINUTOS,
+              min_minutos_feb=MIN_MINUTOS_FEB):
+    """min_minutos_feb=0 construye la tabla sin el mínimo de minutos, para
+    poder justificar ese mínimo en el preproceso."""
     tabla = anadir_evolucion(feb_temporadas)
     tabla = tabla[tabla["competicion"].isin(COMPETICIONES_ENTRENAMIENTO)]
+    # Temporadas con menos de 100 minutos: las estadísticas por 40 no son fiables
+    # y solo contienen 1 de 314 positivos (ver 01_preproceso, sección 3.4).
+    tabla = tabla[tabla["minutos"] >= min_minutos_feb]
     tabla = tabla.merge(fichas, on="id_feb", how="left")
     tabla["edad"] = tabla["temporada"] - tabla["anio_nacimiento"]
     tabla = tabla.merge(emparejamiento[["id_feb", "id_acb"]], on="id_feb", how="left")
-    tabla = definir_objetivo(tabla.reset_index(drop=True), temporadas_acb, ultima_temporada_acb)
+    tabla = definir_objetivo(tabla.reset_index(drop=True), temporadas_acb, ultima_temporada_acb,
+                             horizonte, min_partidos, min_minutos)
     tabla = tabla[~tabla["ya_asentado_antes"]].drop(columns="ya_asentado_antes")
     # id_acb solo servía para el objetivo: no puede quedar como variable.
     return tabla.drop(columns="id_acb").reset_index(drop=True)

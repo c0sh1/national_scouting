@@ -1,3 +1,4 @@
+
 import pandas as pd
 
 from src.dataset import anadir_evolucion, construir, definir_objetivo
@@ -44,6 +45,42 @@ def test_segundo_nombre_que_la_feb_no_tiene():
     assert unicos[["id_feb", "metodo"]].values.tolist() == [["11", "nombre_y_apellido"]]
 
 
+def test_nombre_de_pila_escrito_distinto():
+    fichas = pd.DataFrame({"id_feb": ["20", "21", "22"], "anio_nacimiento": [1987, 1997, 1997]})
+    temporadas = pd.DataFrame({
+        "id_feb": ["20", "21", "22"],
+        "temporada": [2012] * 3,
+        "jugador": ["PINO CAPDEVILA, SERGIO",       # Sergi en la ACB
+                    "GALARZA PEDROSO, JON",         # Ion en la ACB
+                    "GALARZA LOPEZ, MARKEL"],       # mismo apellido y año, otro nombre
+    })
+    acb = pd.DataFrame({"id_acb": ["A5", "A6"], "slug": ["sergi-pino", "ion-galarza"],
+                        "anio_nacimiento": [1987, 1997]})
+    unicos, dudosos = resolver(candidatos(acb, preparar_feb(fichas, temporadas)))
+    assert sorted(unicos[["id_acb", "id_feb", "metodo"]].values.tolist()) == [
+        ["A5", "20", "nombre_parecido"], ["A6", "21", "nombre_parecido"]]
+    assert dudosos.empty
+
+
+def test_nombre_parecido_no_anula_un_emparejamiento_completo():
+    # Jon Galarza empareja por nombre completo; Ion Galarza (otro jugador ACB
+    # del mismo año) solo por nombre parecido. Gana el completo, sin dudosos.
+    fichas = pd.DataFrame({"id_feb": ["21"], "anio_nacimiento": [1997]})
+    temporadas = pd.DataFrame({"id_feb": ["21"], "temporada": [2012],
+                               "jugador": ["GALARZA PEDROSO, JON"]})
+    acb = pd.DataFrame({"id_acb": ["A7", "A8"], "slug": ["jon-galarza", "ion-galarza"],
+                        "anio_nacimiento": [1997, 1997]})
+    unicos, dudosos = resolver(candidatos(acb, preparar_feb(fichas, temporadas)))
+    assert unicos[["id_acb", "id_feb", "metodo"]].values.tolist() == [["A7", "21", "completo"]]
+    assert dudosos.empty
+
+
+def test_nombre_parecido_no_sustituye_a_metodos_mejores():
+    # Pedro Luis Arteaga ya empareja por nombre y apellido: no se buscan parecidos.
+    acb = pd.DataFrame({"id_acb": ["A3"], "slug": ["pedro-luis-arteaga"], "anio_nacimiento": [1992]})
+    assert set(candidatos(acb, _feb())["metodo"]) == {"nombre_y_apellido"}
+
+
 def _temporadas_acb():
     return pd.DataFrame({
         "id_acb": ["A1", "A1", "A2"],
@@ -65,6 +102,15 @@ def test_objetivo_horizonte_y_umbrales():
     assert pd.isna(resultado.loc[2, "se_asienta"])
     assert resultado.loc[3, "se_asienta"] == 0            # nunca llegó a la ACB
     assert bool(resultado.loc[4, "ya_asentado_antes"])    # asentado en 2010, vuelve a la FEB
+
+
+def test_sin_horizonte_completo_no_hay_objetivo_aunque_ya_se_asentara():
+    # Fila de 2013, datos ACB hasta 2014: se asentó en 2014, pero el horizonte
+    # (hasta 2016) no ha terminado. Si se marcara 1, en las temporadas
+    # recientes solo habría positivos.
+    filas = pd.DataFrame({"id_acb": ["A1"], "temporada": [2013]})
+    resultado = definir_objetivo(filas, _temporadas_acb(), ultima_temporada_acb=2014)
+    assert pd.isna(resultado.loc[0, "se_asienta"])
 
 
 def test_evolucion_usa_la_fila_con_mas_minutos():

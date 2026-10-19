@@ -1,6 +1,7 @@
 
 import re
 import unicodedata
+from difflib import SequenceMatcher
 from pathlib import Path
 
 import pandas as pd
@@ -11,6 +12,11 @@ CARPETA_PROCESSED = Path("data/processed")
 # Partículas y sufijos que una fuente pone y la otra no.
 PALABRAS_IGNORADAS = {"de", "del", "la", "las", "los", "y", "da", "das", "do", "dos",
                       "van", "von", "jr", "ii", "iii", "iv"}
+
+# Parecido mínimo entre nombres de pila para el método "nombre_parecido".
+# Con 0,65 entran Sergi/Sergio (0,91), Jhonatan/Jonathan (0,88), Joan/Juan
+# (0,75) e Ion/Jon (0,67); quedan fuera nombres distintos como Jordi/Jorge (0,6).
+PARECIDO_MINIMO = 0.65
 
 
 def palabras(nombre):
@@ -33,6 +39,12 @@ def palabras_ordenadas(texto):
     return re.findall(r"[a-z]+", texto)
 
 
+def nombre_parecido(nombre_acb, apellido, palabras_feb, minimo=PARECIDO_MINIMO):
+    """True si alguna palabra FEB distinta del apellido se parece al nombre ACB."""
+    return any(SequenceMatcher(None, nombre_acb, palabra).ratio() >= minimo
+               for palabra in palabras_feb - {apellido})
+
+
 def candidatos(acb, feb):
     """Pares (id_acb, id_feb, método) que cumplen año de nacimiento y nombre."""
     feb_por_anio = {anio: grupo for anio, grupo in feb.groupby("anio_nacimiento")}
@@ -50,14 +62,32 @@ def candidatos(acb, feb):
             continue
         extremos = {nombre[0], nombre[-1]}
         parciales = [f.id_feb for f in grupo.itertuples() if extremos <= f.palabras]
-        pares += [(fila.id_acb, id_feb, "nombre_y_apellido") for id_feb in parciales]
+        if parciales:
+            pares += [(fila.id_acb, id_feb, "nombre_y_apellido") for id_feb in parciales]
+            continue
+        if len(nombre) < 2:
+            continue
+        parecidos = [f.id_feb for f in grupo.itertuples()
+                     if nombre[-1] in f.palabras and nombre_parecido(nombre[0], nombre[-1], f.palabras)]
+        pares += [(fila.id_acb, id_feb, "nombre_parecido") for id_feb in parecidos]
     return pd.DataFrame(pares, columns=["id_acb", "id_feb", "metodo"])
 
 
+# Orden de fiabilidad de los métodos, del más al menos estricto.
+METODOS = ["completo", "nombre_y_apellido", "nombre_parecido"]
+
+
 def resolver(pares):
-    """Separa los emparejamientos únicos de los dudosos."""
+    """Separa los emparejamientos únicos de los dudosos.
+
+    Si un jugador FEB lo reclaman varios jugadores ACB con métodos distintos,
+    solo cuentan las reclamaciones del método más fiable: un nombre parecido
+    no puede anular un emparejamiento por nombre completo.
+    """
     if pares.empty:
         return pares.copy(), pares.copy()
+    rango = pares["metodo"].map(METODOS.index)
+    pares = pares[rango == rango.groupby(pares["id_feb"]).transform("min")]
     por_acb = pares.groupby("id_acb")["id_feb"].transform("nunique")
     por_feb = pares.groupby("id_feb")["id_acb"].transform("nunique")
     unicos = pares[(por_acb == 1) & (por_feb == 1)]
@@ -96,6 +126,13 @@ def main():
     print(f"Emparejados: {len(unicos)}")
     print(unicos["metodo"].value_counts().to_string())
     print(f"Casos dudosos (no emparejados): {dudosos['id_acb'].nunique()} jugadores ACB")
+
+    # El método menos estricto se revisa a mano: se listan todos sus casos.
+    parecidos = (unicos[unicos["metodo"] == "nombre_parecido"]
+                 .merge(acb[["id_acb", "slug"]], on="id_acb")
+                 .merge(feb[["id_feb", "jugador", "anio_nacimiento"]], on="id_feb"))
+    print(f"\nEmparejados por nombre parecido (revisar): {len(parecidos)}")
+    print(parecidos[["slug", "jugador", "anio_nacimiento"]].to_string(index=False))
 
     # Cobertura: de los que debutaron en ACB cuando ya hay datos de la FEB,
     # cuántos tienen pareja. Los que no la tienen llegaron por otros caminos

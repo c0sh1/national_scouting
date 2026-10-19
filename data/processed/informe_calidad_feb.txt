@@ -18,9 +18,13 @@ perdidas             5
 tapones_favor     1707
 valoracion           9
 
-Porcentaje de filas sin datos de tiro (pocos intentos):
-  t2: 27.0%
-  t3: 30.8%
-  tl: 65.5%
+Totales de las fichas: 7960 de 8136 filas completadas; 176 descartadas porque minutos o puntos no coinciden con el ranking; fase de la ficha que coincidió: {'LR': 7300, '1ª': 315, 'todas': 287, '2ª': 45, 'R2': 13}
+
+Porcentaje de filas sin datos de tiro:
+  t2: 0.5%
+  t3: 0.7%
+  tl: 1.2%
+
+Trayectorias: 17304 filas; excluidas por categoría: 19 (Liga Femenina)
 
 Sin problemas de calidad detectados.

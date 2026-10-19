@@ -182,6 +182,7 @@ cython_debug/
 
 
 .env
+.venv-1
 .venv/
 __pycache__/
 .pytest_cache/
@@ -191,3 +192,5 @@ data/raw/feb_partes/
 notas_eda.md
 
 data/raw/html_feb_fichas/
+
+data/scouting.db
