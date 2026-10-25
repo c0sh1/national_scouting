@@ -1,3 +1,4 @@
+"""Aplicación de ojeo: jóvenes de la FEB con más probabilidad de asentarse en la ACB. """
 
 import sys
 from datetime import date
@@ -30,7 +31,7 @@ def modelo():
 def predicciones():
     tabla = pd.read_csv(RUTA_PREDICCIONES, dtype={"id_feb": str})
     tabla["anio_nacimiento"] = tabla["temporada"] - tabla["edad"]
-    tabla["puesto"] = tabla["puesto"].map(puesto_normalizado)
+    tabla["puesto"] = tabla["puesto"].map(puesto_normalizado).fillna("")
     return tabla[tabla["anio_nacimiento"] <= ANIO_NACIMIENTO_MAXIMO]
 
 
@@ -47,7 +48,7 @@ def temporadas_feb():
     fichas = cargar_datos("jugadores_feb")[["id_feb", "anio_nacimiento", "altura_cm", "puesto"]]
     tabla = tabla.merge(fichas, on="id_feb", how="left")
     tabla["edad"] = tabla["temporada"] - tabla["anio_nacimiento"]
-    tabla["puesto"] = tabla["puesto"].map(puesto_normalizado)
+    tabla["puesto"] = tabla["puesto"].map(puesto_normalizado).fillna("")
     return tabla[tabla["anio_nacimiento"] <= ANIO_NACIMIENTO_MAXIMO]
 
 
@@ -70,8 +71,8 @@ def mostrar_comparables(jugador):
     cercanos = comparables(jugador)
     st.dataframe(cercanos.assign(competicion=cercanos["competicion"].map(COMPETICIONES),
                                  se_asento=cercanos["se_asienta"].map({1: "Sí", 0: "No"}))[
-        ["jugador", "temporada", "competicion"] + RASGOS_COMPARABLES + ["se_asento"]].round(1),
-        hide_index=True, width="stretch", column_config={"se_asento": "¿Se asentó en la ACB?"})
+        ["jugador", "temporada", "competicion"] + RASGOS_COMPARABLES + ["se_asento"]].round(1).pipe(legible),
+        hide_index=True, width="stretch")
     st.write(f"De estos {len(cercanos)} comparables, **{int(cercanos['se_asienta'].sum())}** "
              "se asentaron en la ACB.")
 
@@ -87,6 +88,18 @@ def filtro_posicion(columna, clave):
 
 def grupo(serie):
     return serie.map(grupo_puesto).fillna("sin dato")
+
+
+ETIQUETAS = {
+    "jugador": "Jugador", "equipo": "Equipo", "competicion": "Competición", "temporada": "Temporada",
+    "edad": "Edad", "puesto": "Puesto", "partidos": "Partidos", "minutos_partido": "Min/partido",
+    "puntos_40": "Puntos/40", "rebotes_40": "Rebotes/40", "asistencias_40": "Asistencias/40",
+    "valoracion_40": "Valoración/40", "se_asento": "¿Se asentó en la ACB?",
+}
+
+
+def legible(tabla):
+    return tabla.rename(columns=ETIQUETAS)
 
 
 def porcentaje(serie):
@@ -148,7 +161,8 @@ with pestanas[0]:
                        "minutos_partido": st.column_config.NumberColumn("Min/partido", format="%.1f"),
                        "puntos_40": st.column_config.NumberColumn("Puntos/40", format="%.1f"),
                        "valoracion_40": st.column_config.NumberColumn("Valoración/40", format="%.1f"),
-                       "a_favor": "Lo que más suma"})
+                       "a_favor": "Lo que más suma", "jugador": "Jugador", "equipo": "Equipo",
+                       "competicion": "Competición", "edad": "Edad", "puesto": "Puesto"})
     st.caption("La probabilidad ordena a los jugadores; no es una garantía. El modelo solo ve "
                "estadísticas de la FEB, no lesiones, contratos ni necesidades del club.")
 
@@ -176,7 +190,8 @@ with pestanas[1]:
     trayectoria = trayectoria[trayectoria["id_feb"] == fila["id_feb"]].sort_values("temporada")
     st.dataframe(trayectoria.assign(competicion=trayectoria["competicion"].map(COMPETICIONES))[
         ["temporada", "competicion", "equipo", "edad", "partidos", "minutos_partido", "puntos_40",
-         "rebotes_40", "asistencias_40", "valoracion_40"]].round(1), hide_index=True, width="stretch")
+         "rebotes_40", "asistencias_40", "valoracion_40"]].round(1).pipe(legible), hide_index=True,
+        width="stretch")
 
     st.subheader("Comparables: jugadores parecidos a su edad y qué fue de ellos")
     st.caption("Temporadas FEB de 2005-2022 con el perfil más parecido (edad, minutos y producción "
@@ -278,7 +293,7 @@ with pestanas[3]:
                                          "minutos_partido"], format_func=lambda v: NOMBRES.get(v, v))
     st.dataframe(liga_u.sort_values(orden, ascending=False)[
         ["jugador", "equipo", "edad", "puesto", "partidos", "minutos_partido", "puntos_40", "rebotes_40",
-         "asistencias_40", "valoracion_40"]].round(1), hide_index=True, width="stretch")
+         "asistencias_40", "valoracion_40"]].round(1).pipe(legible), hide_index=True, width="stretch")
 
 # --- Sobre el modelo --------------------------------------------------------
 with pestanas[4]:
@@ -288,7 +303,7 @@ with pestanas[4]:
     st.markdown("""
 - **Objetivo:** al menos 15 partidos con 15 minutos por partido en la ACB en alguna de las 3 temporadas siguientes.
 - **Validación por temporadas:** se entrena con el pasado y se evalúa con temporadas posteriores.
-- **PR-AUC:** con un 5 % de positivos, al azar valdría ~0,05.
+- **PR-AUC:** mide si los que se asientan quedan arriba de la lista. Al azar valdría la proporción de positivos: 0,033 en validación y prueba.
 - **Limitaciones:** el filtro nacional de la FEB mide el pasaporte, no la formación (JFL);
   la Tercera FEB (EBA) no está incluida; el modelo no ve lesiones, contratos ni contexto del club.
 - **Datos:** estadísticas públicas de acb.com y baloncestoenvivo.feb.es, uso académico.
