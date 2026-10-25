@@ -18,6 +18,23 @@ from src.modelo import (NOMBRES, RUTA_MODELO, RUTA_PREDICCIONES, cargar_modelo, 
 
 st.set_page_config(page_title="Scouting FEB → ACB", page_icon="🏀", layout="wide")
 
+st.markdown("""
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&display=swap");
+h1, h2, h3, [data-testid="stMetricLabel"] p {
+    font-family: "Oswald", sans-serif !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+h1 { color: #F26B1D !important; border-bottom: 3px solid #F26B1D; padding-bottom: 0.3rem; }
+[data-testid="stMetricValue"] { color: #F26B1D; font-family: "Oswald", sans-serif; }
+[data-testid="stMetric"] {
+    background: #1D232B; border-left: 4px solid #F26B1D; border-radius: 6px; padding: 0.6rem 0.9rem;
+}
+.stTabs [data-baseweb="tab"] p { font-family: "Oswald", sans-serif; text-transform: uppercase; font-size: 1rem; }
+</style>
+""", unsafe_allow_html=True)
+
 ANIO_NACIMIENTO_MAXIMO = date.today().year - 19
 
 COMPETICIONES = {"primera_feb": "Primera FEB", "segunda_feb": "Segunda FEB", "liga_u": "Liga U"}
@@ -244,7 +261,6 @@ with pestanas[1]:
     if posicion_ficha != "todas":
         ultima = ultima[grupo(ultima["puesto"]) == posicion_ficha]
     if ultima.empty:
-        # No se usa st.stop(): pararía también las pestañas siguientes.
         st.warning("Ningún jugador de 25 años o menos con esa posición en esta temporada; se muestran todos.")
         ultima = tabla[(tabla["temporada"] == temporada_ficha) & (tabla["edad"] <= 25)]
     opciones = ultima["id_feb"] + "|" + ultima["competicion"]

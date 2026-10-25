@@ -1,0 +1,8 @@
+# Tema de la aplicación: pista de baloncesto de noche, con el naranja del balón
+# como color principal (botones, pestañas, filtros y barras de probabilidad).
+[theme]
+base = "dark"
+primaryColor = "#F26B1D"
+backgroundColor = "#121519"
+secondaryBackgroundColor = "#1D232B"
+textColor = "#F1ECE4"
