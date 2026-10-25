@@ -1,4 +1,4 @@
-"""Aplicación de ojeo: jóvenes de la FEB con más probabilidad de asentarse en la ACB. """
+"""Aplicación de ojeo: jóvenes de la FEB con más probabilidad de asentarse en la ACB."""
 
 import sys
 from datetime import date
@@ -7,6 +7,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -57,6 +58,9 @@ RASGOS_COMPARABLES = ["edad", "minutos_partido", "puntos_40", "rebotes_40", "asi
 
 
 def comparables(jugador, n=10):
+    """Las n temporadas FEB de 2005-2022 con el perfil más parecido al del jugador
+    (edad, minutos y producción por 40, estandarizados), con su desenlace en la ACB.
+    Los rasgos que el jugador no tenga no cuentan en la distancia."""
     base = historico()
     matriz = base[RASGOS_COMPARABLES].astype(float)
     media, desviacion = matriz.mean(), matriz.std().replace(0, 1)
@@ -75,6 +79,63 @@ def mostrar_comparables(jugador):
         hide_index=True, width="stretch")
     st.write(f"De estos {len(cercanos)} comparables, **{int(cercanos['se_asienta'].sum())}** "
              "se asentaron en la ACB.")
+    return cercanos
+
+
+EJES_RADAR = {"puntos_40": "Puntos/40", "rebotes_40": "Rebotes/40", "asistencias_40": "Asistencias/40",
+              "recuperaciones_40": "Robos/40", "tapones_favor_40": "Tapones/40", "t2_pct": "% tiros de 2",
+              "t3_pct": "% triples", "minutos_partido": "Min/partido"}
+AZUL, NARANJA = "#2a78d6", "#eb6834"
+
+
+@st.cache_data
+def referencia_radar():
+    """Temporadas FEB con al menos 100 minutos: la base de los percentiles."""
+    tabla = cargar_datos("temporadas_feb").merge(
+        cargar_datos("jugadores_feb")[["id_feb", "puesto"]], on="id_feb", how="left")
+    tabla["posicion"] = tabla["puesto"].map(grupo_puesto)
+    return tabla[tabla["minutos"] >= 100]
+
+
+def grupo_de_comparacion(fila):
+    """Con quién se compara al jugador: su posición y su liga, o toda la liga si
+    la ficha no tiene posición."""
+    posicion = grupo_puesto(fila.get("puesto"))
+    liga = COMPETICIONES[fila["competicion"]]
+    plural = {"exterior": "exteriores", "alero": "aleros", "interior": "interiores"}
+    return posicion, (f"{plural[posicion]} de {liga}" if posicion
+                      else f"todos los jugadores de {liga} (sin posición en la ficha)")
+
+
+def percentiles(fila):
+    """Percentil (0-100) de cada eje frente a los jugadores de su posición y liga."""
+    base = referencia_radar()
+    base = base[base["competicion"] == fila["competicion"]]
+    posicion, _ = grupo_de_comparacion(fila)
+    if posicion:
+        base = base[base["posicion"] == posicion]
+    resultado = {}
+    for columna in EJES_RADAR:
+        valores, valor = base[columna].dropna(), fila.get(columna)
+        resultado[columna] = (100 * ((valores < valor).mean() + 0.5 * (valores == valor).mean())
+                              if pd.notna(valor) else np.nan)
+    return pd.Series(resultado)
+
+
+def grafico_radar(perfiles):
+    """perfiles: lista de (etiqueta, percentiles, color). Un eje sin dato se dibuja en 0."""
+    angulos = np.linspace(0, 2 * np.pi, len(EJES_RADAR), endpoint=False).tolist()
+    fig, ax = plt.subplots(figsize=(6, 6), subplot_kw={"polar": True})
+    for etiqueta, valores, color in perfiles:
+        puntos = valores.fillna(0).tolist()
+        ax.plot(angulos + angulos[:1], puntos + puntos[:1], color=color, linewidth=2, label=etiqueta)
+        ax.fill(angulos + angulos[:1], puntos + puntos[:1], color=color, alpha=0.15)
+    ax.set_xticks(angulos, list(EJES_RADAR.values()), fontsize=9)
+    ax.set_ylim(0, 100)
+    ax.set_yticks([25, 50, 75], ["25", "50", "75"], fontsize=7, color="#8a8a86")
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.06), frameon=False, fontsize=9)
+    ax.set_title("Percentil frente a su posición y su liga (100 = el mejor)", fontsize=10, pad=18)
+    return fig
 
 
 POSICIONES = {"exterior": "Exterior (base / escolta)", "alero": "Alero", "interior": "Interior (ala-pívot / pívot)",
@@ -82,6 +143,9 @@ POSICIONES = {"exterior": "Exterior (base / escolta)", "alero": "Alero", "interi
 
 
 def filtro_posicion(columna, clave):
+    """Selector de posición. La ficha FEB escribe el puesto de muchas formas
+    ("Ala-Pívot", "A-Pívot", "Pivot"...) y falta en muchos jugadores, así que
+    se agrupa en exterior / alero / interior / sin dato."""
     return columna.multiselect("Posición", list(POSICIONES), default=list(POSICIONES),
                                format_func=POSICIONES.get, key=clave)
 
@@ -99,6 +163,7 @@ ETIQUETAS = {
 
 
 def legible(tabla):
+    """Columnas con nombres para el usuario, no los internos."""
     return tabla.rename(columns=ETIQUETAS)
 
 
@@ -169,19 +234,31 @@ with pestanas[0]:
 # --- Ficha y comparables ----------------------------------------------------
 with pestanas[1]:
     tabla = predicciones()
-    ultima = tabla[(tabla["temporada"] == tabla["temporada"].max()) & (tabla["edad"] <= 25)]
+    c1, c2 = st.columns(2)
+    temporada_ficha = c1.selectbox("Temporada FEB", sorted(tabla["temporada"].unique(), reverse=True),
+                                   key="temporada_ficha")
+    posicion_ficha = c2.selectbox("Posición", ["todas"] + list(POSICIONES),
+                                  format_func=lambda v: "Todas" if v == "todas" else POSICIONES[v])
+    ultima = tabla[(tabla["temporada"] == temporada_ficha) & (tabla["edad"] <= 25)]
     ultima = ultima.sort_values("probabilidad", ascending=False)
+    if posicion_ficha != "todas":
+        ultima = ultima[grupo(ultima["puesto"]) == posicion_ficha]
+    if ultima.empty:
+        # No se usa st.stop(): pararía también las pestañas siguientes.
+        st.warning("Ningún jugador de 25 años o menos con esa posición en esta temporada; se muestran todos.")
+        ultima = tabla[(tabla["temporada"] == temporada_ficha) & (tabla["edad"] <= 25)]
     opciones = ultima["id_feb"] + "|" + ultima["competicion"]
-    elegido = st.selectbox("Jugador (última temporada, 25 años o menos)", opciones,
+    elegido = st.selectbox("Jugador (25 años o menos)", opciones,
                            format_func=lambda o: ultima.loc[opciones == o, "jugador"].iloc[0]
                            + f" · {COMPETICIONES[o.split('|')[1]]}")
     fila = ultima[opciones == elegido].iloc[0]
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Probabilidad", f"{fila['probabilidad']:.0%}")
-    c2.metric("Edad", int(fila["edad"]))
-    c3.metric("Minutos por partido", f"{fila['minutos_partido']:.1f}")
-    c4.metric("Valoración por 40", f"{fila['valoracion_40']:.1f}")
+    c2.metric("Puesto", fila["puesto"] or "sin dato")
+    c3.metric("Edad", int(fila["edad"]))
+    c4.metric("Minutos por partido", f"{fila['minutos_partido']:.1f}")
+    c5.metric("Valoración por 40", f"{fila['valoracion_40']:.1f}")
     mostrar_explicacion(str(fila["a_favor"]).split(", ") if isinstance(fila["a_favor"], str) else [],
                         str(fila["en_contra"]).split(", ") if isinstance(fila["en_contra"], str) else [])
 
@@ -196,7 +273,33 @@ with pestanas[1]:
     st.subheader("Comparables: jugadores parecidos a su edad y qué fue de ellos")
     st.caption("Temporadas FEB de 2005-2022 con el perfil más parecido (edad, minutos y producción "
                "por 40 minutos). Incluye a los que llegaron a asentarse en la ACB y a los que no.")
-    mostrar_comparables(fila)
+    cercanos = mostrar_comparables(fila)
+
+    st.subheader("Gráfico de araña")
+    st.caption("Cada eje es el percentil del jugador frente a los de su misma posición y liga con al menos "
+               "100 minutos: 80 en puntos significa que anota más que el 80 % de ellos. Así un base no sale "
+               "bajo en rebotes solo por ser base. Un eje sin dato (por ejemplo, % triples de quien no tira "
+               "triples) se dibuja en 0.")
+    base = referencia_radar()
+    propia = base[(base["id_feb"] == fila["id_feb"]) & (base["competicion"] == fila["competicion"])
+                  & (base["temporada"] == fila["temporada"])].iloc[0]
+    contra = st.selectbox("Comparar con", [None] + list(cercanos.index),
+                          format_func=lambda i: "Nadie" if i is None else
+                          f"{cercanos.loc[i, 'jugador']} ({cercanos.loc[i, 'temporada']}, "
+                          f"{COMPETICIONES[cercanos.loc[i, 'competicion']]})")
+    perfiles = [(f"{fila['jugador']} ({fila['temporada']})", percentiles(propia), AZUL)]
+    if contra is not None:
+        otro = cercanos.loc[contra]
+        perfiles.append((f"{otro['jugador']} ({otro['temporada']}) · se asentó: "
+                         f"{'sí' if otro['se_asienta'] == 1 else 'no'}", percentiles(otro), NARANJA))
+    st.write(" · ".join(f"**{etiqueta.split(' (')[0]}** se compara con {grupo_de_comparacion(f)[1]}"
+                        for (etiqueta, _, _), f in zip(perfiles, [propia] + ([otro] if contra is not None else []))))
+    izquierda, derecha = st.columns([3, 2])
+    izquierda.pyplot(grafico_radar(perfiles), width="stretch")
+    detalle = pd.DataFrame({etiqueta.split(" (")[0]: valores.round(0) for etiqueta, valores, _ in perfiles})
+    detalle.index = list(EJES_RADAR.values())
+    derecha.write("**Percentiles**")
+    derecha.dataframe(detalle, width="stretch")
 
 # --- Evaluar un jugador -----------------------------------------------------
 with pestanas[2]:
