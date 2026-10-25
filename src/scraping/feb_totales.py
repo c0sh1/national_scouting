@@ -1,3 +1,5 @@
+"Scraping de la web de la FEB: totales por temporada y fase desde las fichas de jugador."
+"La fase se elige comparando minutos y puntos con el ranking, porque su nombre cambia según la temporada · la segunda columna “TC” son tapones en contra"
 
 import argparse
 import logging

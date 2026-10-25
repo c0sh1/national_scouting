@@ -1,3 +1,5 @@
+"Scraping de la web de la FEB: fichas de jugador y trayectoria."
+"Solo se guardan temporadas como jugador, no como entrenador · los enlaces se guardan para no volver a buscarlos"
 
 import argparse
 import logging

@@ -1,3 +1,5 @@
+"""Scraping de la web de la FEB y de la ACB, con caché en disco y pausas entre peticiones."""
+
 
 import logging
 import os

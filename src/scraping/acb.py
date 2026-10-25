@@ -1,3 +1,5 @@
+"""Scraping de la web de la ACB."""
+"""	Solo se descarga la ficha si jugó desde 2005 · acb.com da medias por partido, no totales · la fecha viene con “(30 años)” y se recorta"""
 
 import argparse
 import logging

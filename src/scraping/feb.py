@@ -1,3 +1,5 @@
+" Scraping de la web de la FEB: rankings de jugadores por temporada, fase y estadística."
+
 
 import argparse
 import logging
