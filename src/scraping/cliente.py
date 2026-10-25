@@ -22,9 +22,6 @@ class ClienteHTTP:
         self.timeout = timeout
         self._ultima_peticion = 0.0
 
-        # El contacto va en el User-Agent para que el administrador del sitio
-        # pueda escribir si la descarga le causa problemas. Se lee del entorno
-        # para no dejar datos personales en el repositorio.
         contacto = os.getenv("CONTACTO_SCRAPER", "sin-contacto")
         self.sesion = requests.Session()
         self.sesion.headers.update({

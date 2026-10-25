@@ -19,12 +19,9 @@ TEMPORADA_MINIMA = 2005
 CARPETA_RAW = Path("data/raw")
 CARPETA_HTML = CARPETA_RAW / "html_acb"
 
-# Solo la URL base de la ficha; el sitemap también lista /partidos, /temporada, etc.
 RE_FICHA = re.compile(r"^/es/liga/jugadores/([a-z0-9-]+)-(\d{6,})/?$")
 RE_TEMPORADA = re.compile(r"^\d{2}-\d{2}$")
 
-# Orden de columnas de la tabla /temporada, comprobado en la web en 2026.
-# Solo se usa si la tabla no trae cabecera legible con el mismo número de celdas.
 COLUMNAS_TEMPORADA = [
     "temporada", "club", "partidos", "minutos", "titular",
     "puntos", "puntos_max",
@@ -46,8 +43,6 @@ ETIQUETAS_BIO = {
     "Licencia": "licencia",
 }
 
-# La ficha pinta primero un esqueleto con las etiquetas vacías y después los
-# datos reales. Estas comprobaciones descartan los valores del esqueleto.
 VALIDADORES_BIO = {
     "posicion": lambda v: re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúÑñ /-]{3,30}", v),
     "altura": lambda v: re.fullmatch(r"\d,\d{2}\s*m", v),
@@ -110,7 +105,6 @@ def parsear_temporadas(html):
             textos = [_texto(c) for c in celdas]
             if not RE_TEMPORADA.match(textos[0]):
                 continue
-            # Las filas del esqueleto llegan con todas las celdas vacías.
             if sum(1 for t in textos[2:] if t) < 3:
                 continue
 
@@ -127,7 +121,6 @@ def parsear_temporadas(html):
                 fila["club"] = _texto(enlace_club)
             filas.append(fila)
 
-    # Quitar duplicados exactos (la web a veces pinta la tabla dos veces: escritorio y móvil).
     unicas = {tuple(sorted(f.items())): f for f in filas}
     return list(unicas.values())
 
@@ -147,8 +140,8 @@ def parsear_ficha(html):
         valor = lineas[i + 1]
         if VALIDADORES_BIO[campo](valor):
             if campo == "fecha_nacimiento":
-                valor = valor[:10]  # se descarta la edad entre paréntesis
-            bio[campo] = valor  # gana la última aparición válida (la real, no el esqueleto)
+                valor = valor[:10]  
+            bio[campo] = valor 
     return bio
 
 

@@ -11,20 +11,18 @@ MIN_PARTIDOS = 15
 MIN_MINUTOS = 15
 MIN_MINUTOS_FEB = 100
 COMPETICIONES_ENTRENAMIENTO = ["primera_feb", "segunda_feb"]
+EDAD_MINIMA = 14
 
 VARIABLES_EVOLUCION = ["minutos_partido", "puntos_40", "rebotes_40", "asistencias_40", "valoracion_40"]
 
 
 def temporadas_asentado(temporadas_acb, min_partidos=MIN_PARTIDOS, min_minutos=MIN_MINUTOS):
-    """Pares (id_acb, anio) de temporadas ACB en las que el jugador se asentó."""
     asentado = (temporadas_acb["partidos"] >= min_partidos) & (temporadas_acb["minutos"] >= min_minutos)
     return temporadas_acb.loc[asentado, ["id_acb", "anio"]]
 
 
 def definir_objetivo(filas, temporadas_acb, ultima_temporada_acb, horizonte=HORIZONTE,
                      min_partidos=MIN_PARTIDOS, min_minutos=MIN_MINUTOS):
-    """Añade se_asienta (1/0, vacío si el horizonte no ha terminado) y
-    ya_asentado_antes (para filtrar veteranos)."""
     asentadas = temporadas_asentado(temporadas_acb, min_partidos, min_minutos)
     por_jugador = asentadas.groupby("id_acb")["anio"].apply(list).to_dict()
 
@@ -35,9 +33,6 @@ def definir_objetivo(filas, temporadas_acb, ultima_temporada_acb, horizonte=HORI
         completo = fila["temporada"] + horizonte <= ultima_temporada_acb
         return pd.Series({
             "ya_asentado_antes": antes,
-            # Sin horizonte completo no hay objetivo, aunque ya se haya asentado:
-            # en esas temporadas solo se podrían etiquetar los positivos, y
-            # entrenar con ellas sesgaría el modelo hacia las más recientes.
             "se_asienta": int(despues) if completo else pd.NA,
         })
 
@@ -45,12 +40,6 @@ def definir_objetivo(filas, temporadas_acb, ultima_temporada_acb, horizonte=HORI
 
 
 def anadir_evolucion(tabla):
-    """Cambio respecto a la temporada anterior del mismo jugador.
-
-    Un jugador puede tener dos filas en una temporada (por ejemplo Liga U y
-    Segunda FEB). Como referencia de cada temporada se toma la fila con más
-    minutos.
-    """
     principal = (tabla.sort_values("minutos", ascending=False)
                  .drop_duplicates(["id_feb", "temporada"])
                  .sort_values(["id_feb", "temporada"]))
@@ -66,20 +55,16 @@ def anadir_evolucion(tabla):
 def construir(feb_temporadas, fichas, temporadas_acb, emparejamiento, ultima_temporada_acb,
               horizonte=HORIZONTE, min_partidos=MIN_PARTIDOS, min_minutos=MIN_MINUTOS,
               min_minutos_feb=MIN_MINUTOS_FEB):
-    """min_minutos_feb=0 construye la tabla sin el mínimo de minutos, para
-    poder justificar ese mínimo en el preproceso."""
     tabla = anadir_evolucion(feb_temporadas)
     tabla = tabla[tabla["competicion"].isin(COMPETICIONES_ENTRENAMIENTO)]
-    # Temporadas con menos de 100 minutos: las estadísticas por 40 no son fiables
-    # y solo contienen 1 de 314 positivos (ver 01_preproceso, sección 3.4).
     tabla = tabla[tabla["minutos"] >= min_minutos_feb]
     tabla = tabla.merge(fichas, on="id_feb", how="left")
     tabla["edad"] = tabla["temporada"] - tabla["anio_nacimiento"]
+    tabla.loc[tabla["edad"] < EDAD_MINIMA, ["anio_nacimiento", "edad"]] = float("nan")
     tabla = tabla.merge(emparejamiento[["id_feb", "id_acb"]], on="id_feb", how="left")
     tabla = definir_objetivo(tabla.reset_index(drop=True), temporadas_acb, ultima_temporada_acb,
                              horizonte, min_partidos, min_minutos)
     tabla = tabla[~tabla["ya_asentado_antes"]].drop(columns="ya_asentado_antes")
-    # id_acb solo servía para el objetivo: no puede quedar como variable.
     return tabla.drop(columns="id_acb").reset_index(drop=True)
 
 
@@ -89,7 +74,6 @@ def main():
     temporadas_acb = pd.read_csv(CARPETA_PROCESSED / "temporadas.csv", dtype={"id_acb": str})
     emparejamiento = pd.read_csv(CARPETA_PROCESSED / "emparejamiento.csv", dtype={"id_acb": str, "id_feb": str})
 
-    # La temporada en curso de la ACB está incompleta: la última completa es la anterior.
     ultima_completa = int(temporadas_acb["anio"].max()) - 1
     temporadas_acb = temporadas_acb[temporadas_acb["anio"] <= ultima_completa]
 
@@ -105,7 +89,7 @@ def main():
     print("\nPositivos por competición y nacionalidad FEB:")
     print(etiquetadas.groupby(["competicion", "es_nacional_feb"])["se_asienta"]
           .agg(["size", "sum"]).to_string())
-    print(f"\nFilas sin edad: {tabla['edad'].isna().sum()}")
+    print(f"\nFilas sin edad (año de nacimiento imposible o ausente): {tabla['edad'].isna().sum()}")
 
 
 if __name__ == "__main__":

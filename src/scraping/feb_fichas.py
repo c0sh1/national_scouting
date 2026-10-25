@@ -24,12 +24,7 @@ RE_TEMPORADA = re.compile(r"^\d{2}/\d{2}$")
 
 
 def enlaces_desde_cache(carpeta=CARPETA_RANKINGS, archivo=ARCHIVO_ENLACES):
-    """Un enlace por jugador (c), tomado de las páginas de ranking guardadas.
-
-    Leer miles de páginas tarda unos minutos, así que el resultado se guarda en
-    un CSV y las siguientes ejecuciones lo leen directamente. Si se descargan
-    rankings nuevos, hay que borrar ese CSV.
-    """
+    
     if archivo.exists():
         tabla = pd.read_csv(archivo, dtype=str)
         return dict(zip(tabla["c"], tabla["i"]))
@@ -42,8 +37,6 @@ def enlaces_desde_cache(carpeta=CARPETA_RANKINGS, archivo=ARCHIVO_ENLACES):
 
 
 def _valor(soup, etiqueta):
-    """Valor de un dato personal, esté en el mismo elemento que la etiqueta
-    ("Altura 208 cm") o en el siguiente ("Altura" | "208 cm")."""
     for nodo in soup.find_all(string=re.compile(rf"^\s*{re.escape(etiqueta)}\b")):
         resto = nodo.strip()[len(etiqueta):].strip(" :")
         if resto:
@@ -82,9 +75,6 @@ def parsear_ficha(html):
             celdas = [" ".join(td.get_text(" ").split()) for td in tr.find_all("td")]
             if len(celdas) < 3 or not RE_TEMPORADA.match(celdas[0]):
                 continue
-            # La trayectoria mezcla cargos (jugador, entrenador, delegado...).
-            # Solo se guardan las temporadas como jugador: los demás cargos no
-            # interesan al proyecto y no hace falta conservarlos.
             licencia = celdas[3] if len(celdas) > 3 else ""
             if licencia and not licencia.lower().startswith("jugador"):
                 continue

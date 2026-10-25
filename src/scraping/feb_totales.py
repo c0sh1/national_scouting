@@ -17,8 +17,6 @@ BASE = "https://baloncestoenvivo.feb.es"
 CARPETA_RAW = Path("data/raw")
 ARCHIVO_PARES = CARPETA_RAW / "feb_enlaces_temporadas.csv"
 
-# Columnas de la tabla de totales, en orden. "TC" aparece dos veces en la web:
-# primero tiros de campo y después tapones en contra.
 COLUMNAS_TOTALES = [
     "fase", "partidos", "minutos", "puntos", "t2", "t3", "tc", "tl",
     "reb_of", "reb_def", "rebotes", "asistencias", "recuperaciones", "perdidas",
@@ -29,12 +27,6 @@ PREFIJOS_COMPETICION = {nombre.replace("_", "-"): nombre for nombre in COMPETICI
 
 
 def pares_desde_cache(carpeta=CARPETA_RANKINGS, archivo=ARCHIVO_PARES):
-    """Pares (jugador, equipo) con la competición y temporada de su ranking.
-
-    Igual que los enlaces de las fichas, se guardan en un CSV para no releer
-    las páginas en cada ejecución. Si se descargan rankings nuevos, hay que
-    borrar ese CSV.
-    """
     if archivo.exists():
         return pd.read_csv(archivo, dtype={"c": str, "i": str})
     pares = {}
@@ -66,10 +58,6 @@ def a_numero(texto):
 
 
 def temporada_mostrada(soup):
-    """Temporada de la ficha: la opción elegida en el desplegable de temporadas
-    o, si no lo hay, el texto "Temporada AAAA/AAAA" fuera de los desplegables.
-    No basta con buscar el texto en toda la página, porque el desplegable
-    también lista todas las temporadas."""
     for desplegable in soup.find_all("select"):
         elegida = desplegable.find("option", selected=True)
         if elegida and re.fullmatch(r"\d{4}/\d{4}", elegida.get_text(strip=True)):
@@ -82,11 +70,6 @@ def temporada_mostrada(soup):
 
 
 def parsear_totales(html):
-    """Filas de la tabla de totales de la temporada, una por fase.
-
-    Hay dos tablas con las mismas cabeceras (medias y totales); la de totales
-    se reconoce porque los tiros vienen como "anotados/intentados".
-    """
     soup = BeautifulSoup(html, "html.parser")
     temporada = temporada_mostrada(soup)
     filas = []
@@ -129,7 +112,6 @@ def main():
     if args.limite:
         pares = pares.head(args.limite)
 
-    # Enlace usado para la ficha de datos personales: esa página ya está en disco.
     base = {}
     if ARCHIVO_ENLACES.exists():
         enlaces = pd.read_csv(ARCHIVO_ENLACES, dtype=str)

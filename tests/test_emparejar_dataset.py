@@ -1,4 +1,3 @@
-
 import pandas as pd
 
 from src.dataset import anadir_evolucion, construir, definir_objetivo
@@ -19,11 +18,11 @@ def _feb():
     temporadas = pd.DataFrame({
         "id_feb": ["10", "11", "12", "13", "14"],
         "temporada": [2012] * 5,
-        "jugador": ["ARTEAGA GONZALEZ, VICTOR JESUS",   # el bueno
-                    "ARTEAGA LOPEZ, PEDRO",             # mismo apellido, otro nombre
-                    "ARTEAGA GONZALEZ, VICTOR",         # mismo nombre, otro año
-                    "GONZALEZ PEREZ, JOSE",             # homónimo 1
-                    "GONZALEZ RUIZ, JOSE MARIA"],       # homónimo 2
+        "jugador": ["ARTEAGA GONZALEZ, VICTOR JESUS",   
+                    "ARTEAGA LOPEZ, PEDRO",             
+                    "ARTEAGA GONZALEZ, VICTOR",         
+                    "GONZALEZ PEREZ, JOSE",             
+                    "GONZALEZ RUIZ, JOSE MARIA"],       
     })
     return preparar_feb(fichas, temporadas)
 
@@ -36,7 +35,7 @@ def test_emparejamiento_por_nombre_y_anio():
     })
     unicos, dudosos = resolver(candidatos(acb, _feb()))
     assert unicos[["id_acb", "id_feb", "metodo"]].values.tolist() == [["A1", "10", "completo"]]
-    assert set(dudosos["id_feb"]) == {"13", "14"}      # dos José González de 1995: no se decide
+    assert set(dudosos["id_feb"]) == {"13", "14"}      
 
 
 def test_segundo_nombre_que_la_feb_no_tiene():
@@ -50,9 +49,9 @@ def test_nombre_de_pila_escrito_distinto():
     temporadas = pd.DataFrame({
         "id_feb": ["20", "21", "22"],
         "temporada": [2012] * 3,
-        "jugador": ["PINO CAPDEVILA, SERGIO",       # Sergi en la ACB
-                    "GALARZA PEDROSO, JON",         # Ion en la ACB
-                    "GALARZA LOPEZ, MARKEL"],       # mismo apellido y año, otro nombre
+        "jugador": ["PINO CAPDEVILA, SERGIO",       
+                    "GALARZA PEDROSO, JON",         
+                    "GALARZA LOPEZ, MARKEL"],       
     })
     acb = pd.DataFrame({"id_acb": ["A5", "A6"], "slug": ["sergi-pino", "ion-galarza"],
                         "anio_nacimiento": [1987, 1997]})
@@ -63,8 +62,6 @@ def test_nombre_de_pila_escrito_distinto():
 
 
 def test_nombre_parecido_no_anula_un_emparejamiento_completo():
-    # Jon Galarza empareja por nombre completo; Ion Galarza (otro jugador ACB
-    # del mismo año) solo por nombre parecido. Gana el completo, sin dudosos.
     fichas = pd.DataFrame({"id_feb": ["21"], "anio_nacimiento": [1997]})
     temporadas = pd.DataFrame({"id_feb": ["21"], "temporada": [2012],
                                "jugador": ["GALARZA PEDROSO, JON"]})
@@ -76,7 +73,6 @@ def test_nombre_parecido_no_anula_un_emparejamiento_completo():
 
 
 def test_nombre_parecido_no_sustituye_a_metodos_mejores():
-    # Pedro Luis Arteaga ya empareja por nombre y apellido: no se buscan parecidos.
     acb = pd.DataFrame({"id_acb": ["A3"], "slug": ["pedro-luis-arteaga"], "anio_nacimiento": [1992]})
     assert set(candidatos(acb, _feb())["metodo"]) == {"nombre_y_apellido"}
 
@@ -96,18 +92,13 @@ def test_objetivo_horizonte_y_umbrales():
         "temporada": [2012, 2010, 2020, 2012, 2012],
     })
     resultado = definir_objetivo(filas, _temporadas_acb(), ultima_temporada_acb=2021)
-    # 2012: se asienta en 2014 (dentro de 3 temporadas). 2010: 2014 queda fuera.
     assert resultado["se_asienta"].tolist()[:2] == [1, 0]
-    # 2020: el horizonte acaba en 2023 y solo hay datos hasta 2021: sin objetivo.
     assert pd.isna(resultado.loc[2, "se_asienta"])
-    assert resultado.loc[3, "se_asienta"] == 0            # nunca llegó a la ACB
-    assert bool(resultado.loc[4, "ya_asentado_antes"])    # asentado en 2010, vuelve a la FEB
+    assert resultado.loc[3, "se_asienta"] == 0            
+    assert bool(resultado.loc[4, "ya_asentado_antes"])    
 
 
 def test_sin_horizonte_completo_no_hay_objetivo_aunque_ya_se_asentara():
-    # Fila de 2013, datos ACB hasta 2014: se asentó en 2014, pero el horizonte
-    # (hasta 2016) no ha terminado. Si se marcara 1, en las temporadas
-    # recientes solo habría positivos.
     filas = pd.DataFrame({"id_acb": ["A1"], "temporada": [2013]})
     resultado = definir_objetivo(filas, _temporadas_acb(), ultima_temporada_acb=2014)
     assert pd.isna(resultado.loc[0, "se_asienta"])
@@ -143,3 +134,15 @@ def test_construir_no_deja_columnas_de_la_acb():
     assert "id_acb" not in tabla.columns
     assert tabla.loc[0, "edad"] == 20
     assert tabla.loc[0, "se_asienta"] == 1
+
+
+def test_edad_imposible_queda_desconocida():
+    feb = pd.DataFrame({"id_feb": ["1", "2"], "competicion": ["primera_feb"] * 2, "temporada": [2021, 2021],
+                        "minutos": [500.0, 500.0], "minutos_partido": [20.0] * 2, "puntos_40": [10.0] * 2,
+                        "rebotes_40": [5.0] * 2, "asistencias_40": [2.0] * 2, "valoracion_40": [10.0] * 2})
+    fichas = pd.DataFrame({"id_feb": ["1", "2"], "anio_nacimiento": [2019, 1999]})
+    vacia_acb = pd.DataFrame(columns=["id_acb", "anio", "partidos", "minutos"])
+    vacio_emp = pd.DataFrame(columns=["id_feb", "id_acb"])
+    tabla = construir(feb, fichas, vacia_acb, vacio_emp, ultima_temporada_acb=2025)
+    edades = tabla.set_index("id_feb")["edad"]
+    assert pd.isna(edades["1"]) and edades["2"] == 22

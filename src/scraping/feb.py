@@ -14,7 +14,6 @@ from src.scraping.cliente import ClienteHTTP
 log = logging.getLogger(__name__)
 
 BASE = "https://baloncestoenvivo.feb.es"
-# Código de grupo (g) y nombre corto (nm). Sin el parámetro nm la web devuelve 404.
 COMPETICIONES = {
     "primera_feb": (1, "primerafeb"),
     "segunda_feb": (2, "segundafeb"),
@@ -99,10 +98,6 @@ def opciones(soup, control):
 
 
 def objetivo_postback(soup, control):
-    """Nombre que el desplegable envía en __EVENTTARGET al cambiar.
-
-    Se lee de su atributo onchange porque ASP.NET a veces usa '$' en lugar de ':'.
-    """
     desplegable = soup.find("select", attrs={"name": control})
     onchange = desplegable.get("onchange", "") if desplegable else ""
     coincidencia = re.search(r"__doPostBack\(\\?'([^'\\]+)", onchange)
@@ -110,26 +105,19 @@ def objetivo_postback(soup, control):
 
 
 def fases_regulares(lista_opciones):
-    """Opciones de fase que corresponden a liga regular (puede haber varios grupos)."""
     return [(valor, texto) for valor, texto in lista_opciones if "regular" in normalizar(texto)]
 
 
 def parsear_ranking(soup):
-    """Filas de la tabla de ranking: jugador, equipo, total, partidos y media.
-
-    También se guardan todas las celdas en bruto, porque los rankings de
-    porcentaje de tiro podrían tener otras columnas.
-    """
     filas = []
     for enlace in soup.select("a[href*='Jugador.aspx']"):
         texto = " ".join(enlace.get_text(" ").split())
         if not texto:
-            continue  # el enlace de la foto no tiene texto
+            continue  
         celdas = enlace.find_parent("tr").find_all("td")
         valores = [" ".join(c.get_text(" ").split()) for c in celdas]
         parametros = parse_qs(urlparse(enlace["href"]).query)
         total = valores[3] if len(valores) > 3 else ""
-        # En los rankings de porcentaje la columna Tot trae "anotados / intentados".
         tiros = re.fullmatch(r"(\d+)\s*/\s*(\d+)", total)
         filas.append({
             "id_feb": parametros.get("c", [None])[0],
@@ -146,7 +134,6 @@ def parsear_ranking(soup):
 
 
 def enlaces_paginacion(soup):
-    """Objetivos de postback de los números de página del ranking."""
     objetivos = []
     for enlace in soup.find_all("a", href=True):
         coincidencia = re.match(r"javascript:__doPostBack\('([^']+)'", enlace["href"])
@@ -156,12 +143,6 @@ def enlaces_paginacion(soup):
 
 
 def enlace_siguiente_bloque(soup):
-    """El paginador de ASP.NET muestra 10 números y '...' para cambiar de bloque.
-
-    Puede haber dos '...' (bloque anterior y siguiente). El del siguiente es el
-    que aparece después del último número; si el último enlace es un número, ya
-    estamos en el último bloque.
-    """
     paginador = []
     for enlace in soup.find_all("a", href=True):
         coincidencia = re.match(r"javascript:__doPostBack\('([^']+)'", enlace["href"])
@@ -176,7 +157,6 @@ def enlace_siguiente_bloque(soup):
 # --- Navegación ----------------------------------------------------------------------
 
 class PaginaFEB:
-    """Mantiene el estado del formulario entre postbacks."""
 
     def __init__(self, cliente):
         self.cliente = cliente
@@ -220,8 +200,6 @@ class PaginaFEB:
             vistos = {f["id_feb"] for f in filas}
             self.postback(objetivo)
             nuevas = parsear_ranking(self.soup)
-            # Si la página "nueva" solo trae jugadores ya vistos, el paginador
-            # no ha avanzado: se para en vez de entrar en bucle.
             if not nuevas or {f["id_feb"] for f in nuevas} <= vistos:
                 break
             pagina += 1
@@ -286,7 +264,6 @@ def unir_partes():
 
 
 def leer_temporadas(texto):
-    """'2024' -> [2024] · '2010-2012' -> [2010, 2011, 2012] · '2010,2015' -> [2010, 2015]"""
     anios = []
     for trozo in texto.split(","):
         if "-" in trozo:
@@ -300,7 +277,6 @@ def leer_temporadas(texto):
 # --- Exploración -----------------------------------------------------------------------
 
 def explorar(cliente, competicion="primera_feb", temporada=2025):
-    """Guarda la página y muestra los controles del formulario."""
     g, nm = COMPETICIONES[competicion]
     url = f"{BASE}/rankings.aspx?g={g}&t={temporada}&nm={nm}"
     pagina = PaginaFEB(cliente)
@@ -346,7 +322,6 @@ def main():
             try:
                 descargar_temporada(cliente, competicion, temporada, args.estadisticas)
             except Exception:
-                # Una temporada con un formato raro no debe parar todas las demás.
                 log.exception("Fallo en %s %s; se continúa con la siguiente", competicion, temporada)
 
     datos = unir_partes()
