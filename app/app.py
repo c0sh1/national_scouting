@@ -291,11 +291,8 @@ with pestanas[1]:
                "por 40 minutos). Incluye a los que llegaron a asentarse en la ACB y a los que no.")
     cercanos = mostrar_comparables(fila)
 
-    st.subheader("Gráfico de araña")
-    st.caption("Cada eje es el percentil del jugador frente a los de su misma posición y liga con al menos "
-               "100 minutos: 80 en puntos significa que anota más que el 80 % de ellos. Así un base no sale "
-               "bajo en rebotes solo por ser base. Un eje sin dato (por ejemplo, % triples de quien no tira "
-               "triples) se dibuja en 0.")
+    st.subheader("Gráfico")
+    st.caption("Comparación de los percentiles del jugador con los de otros jugadores similares.")
     base = referencia_radar()
     propia = base[(base["id_feb"] == fila["id_feb"]) & (base["competicion"] == fila["competicion"])
                   & (base["temporada"] == fila["temporada"])].iloc[0]
