@@ -24,7 +24,6 @@ def test_normalizar_nombre_empareja_fuentes():
 
 
 def _temporadas():
-    # Medias por partido, como las publica acb.com. En 23-24 hubo traspaso.
     return pd.DataFrame({
         "id_acb": ["1", "1", "1"],
         "temporada": ["23-24", "23-24", "24-25"],
@@ -51,9 +50,9 @@ def test_agregado_pondera_por_partidos():
     agregado = agregar_por_temporada(limpiar_temporadas(_temporadas()))
     fila = agregado[agregado["anio"] == 2023].iloc[0]
     assert fila["partidos"] == 40
-    assert fila["puntos"] == 7.0                      # (40 + 240) / 40, no la media de 4 y 8
-    assert fila["minutos"] == 17.5                    # (100 + 600) / 40
-    assert fila["t3_pct"] == (50 * 10 + 30 * 90) / 100  # ponderado por intentos
+    assert fila["puntos"] == 7.0                      
+    assert fila["minutos"] == 17.5                    
+    assert fila["t3_pct"] == (50 * 10 + 30 * 90) / 100  
     assert fila["puntos_40"] == 40 * 280 / 700
     assert fila["club"] == "A / B"
 

@@ -1,3 +1,4 @@
+"""Variables del modelo, entrenamiento y explicación de predicciones."""
 
 import unicodedata
 from pathlib import Path
@@ -11,7 +12,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 RUTA_MODELO = RAIZ / "models" / "modelo.joblib"
 RUTA_PREDICCIONES = RAIZ / "data" / "processed" / "predicciones.csv"
 
-ULTIMA_TEMPORADA_ENTRENAMIENTO = 2022   
+ULTIMA_TEMPORADA_ENTRENAMIENTO = 2022  
 
 VARIABLES_NUMERICAS = [
     "edad", "altura_cm", "partidos", "minutos", "minutos_partido",
@@ -28,7 +29,6 @@ VARIABLES_BINARIAS = [
 ]
 VARIABLES = VARIABLES_NUMERICAS + VARIABLES_BINARIAS
 
-# Nombres legibles para la aplicación y las explicaciones.
 NOMBRES = {
     "edad": "edad", "altura_cm": "altura", "partidos": "partidos jugados",
     "minutos": "minutos en la temporada", "minutos_partido": "minutos por partido",
@@ -171,6 +171,9 @@ def describir(variable, valor):
 
 def explicar(contribucion, valores=None, n=3):
     orden = contribucion.sort_values()
+    if valores is not None:
+        orden = orden[valores.reindex(orden.index).notna()]
+    orden = orden[[not v.endswith("_falta") for v in orden.index]]
     texto = (lambda v: describir(v, valores[v])) if valores is not None else (lambda v: NOMBRES.get(v, v))
     a_favor = [texto(v) for v, c in orden[::-1].items() if c > 0][:n]
     en_contra = [texto(v) for v, c in orden.items() if c < 0][:n]

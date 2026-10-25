@@ -9,13 +9,9 @@ import pandas as pd
 CARPETA_RAW = Path("data/raw")
 CARPETA_PROCESSED = Path("data/processed")
 
-# Partículas y sufijos que una fuente pone y la otra no.
 PALABRAS_IGNORADAS = {"de", "del", "la", "las", "los", "y", "da", "das", "do", "dos",
                       "van", "von", "jr", "ii", "iii", "iv"}
 
-# Parecido mínimo entre nombres de pila para el método "nombre_parecido".
-# Con 0,65 entran Sergi/Sergio (0,91), Jhonatan/Jonathan (0,88), Joan/Juan
-# (0,75) e Ion/Jon (0,67); quedan fuera nombres distintos como Jordi/Jorge (0,6).
 PARECIDO_MINIMO = 0.65
 
 
@@ -72,8 +68,6 @@ def candidatos(acb, feb):
         pares += [(fila.id_acb, id_feb, "nombre_parecido") for id_feb in parecidos]
     return pd.DataFrame(pares, columns=["id_acb", "id_feb", "metodo"])
 
-
-# Orden de fiabilidad de los métodos, del más al menos estricto.
 METODOS = ["completo", "nombre_y_apellido", "nombre_parecido"]
 
 
@@ -127,16 +121,12 @@ def main():
     print(unicos["metodo"].value_counts().to_string())
     print(f"Casos dudosos (no emparejados): {dudosos['id_acb'].nunique()} jugadores ACB")
 
-    # El método menos estricto se revisa a mano: se listan todos sus casos.
     parecidos = (unicos[unicos["metodo"] == "nombre_parecido"]
                  .merge(acb[["id_acb", "slug"]], on="id_acb")
                  .merge(feb[["id_feb", "jugador", "anio_nacimiento"]], on="id_feb"))
     print(f"\nEmparejados por nombre parecido (revisar): {len(parecidos)}")
     print(parecidos[["slug", "jugador", "anio_nacimiento"]].to_string(index=False))
 
-    # Cobertura: de los que debutaron en ACB cuando ya hay datos de la FEB,
-    # cuántos tienen pareja. Los que no la tienen llegaron por otros caminos
-    # (NCAA, extranjero, cantera directa) o el cruce ha fallado.
     temporadas_acb = pd.read_csv(CARPETA_PROCESSED / "temporadas.csv", dtype={"id_acb": str})
     debut = temporadas_acb.groupby("id_acb")["anio"].min().rename("debut_acb")
     resumen = acb.set_index("id_acb").join(debut)

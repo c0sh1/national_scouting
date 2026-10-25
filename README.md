@@ -4,7 +4,7 @@ Herramienta para que un club ACB de presupuesto medio, sin departamento de
 datos, encuentre en Primera FEB y Segunda FEB a jugadores nacionales con
 posibilidades reales de asentarse en la ACB.
 
-**Aplicación:** PENDIENTE (enlace a Streamlit Community Cloud)
+**Aplicación:** (https://nationalscouting-juh2ruuenbunbpvfay5nun.streamlit.app/)
 
 ---
 

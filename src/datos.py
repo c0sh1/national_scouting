@@ -14,7 +14,6 @@ def _conectar(ruta=None):
     if not ruta.exists():
         raise FileNotFoundError(
             f"No existe la base de datos {ruta}. Genérala con: python -m src.base_datos")
-    # Solo lectura: la aplicación nunca debe modificar los datos.
     return sqlite3.connect(f"{ruta.resolve().as_uri()}?mode=ro", uri=True)
 
 

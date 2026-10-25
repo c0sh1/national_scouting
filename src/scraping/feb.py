@@ -36,7 +36,7 @@ ESTADISTICAS = [
     "Balones recuperados", "Balones perdidos", "Tapones a favor", "Valoración",
     "Minutos jugados", "% Tiros de 2", "% Tiros de 3", "% Tiros Libres",
 ]
-MAX_PAGINAS = 60  # tope de seguridad por si la paginación entra en bucle
+MAX_PAGINAS = 60 
 
 CARPETA_RAW = Path("data/raw")
 CARPETA_HTML = CARPETA_RAW / "html_feb"

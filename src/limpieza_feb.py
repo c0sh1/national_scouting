@@ -23,10 +23,7 @@ ESTADISTICAS_TIRO = {
     "% Tiros de 3": "t3",
     "% Tiros Libres": "tl",
 }
-# La misma competición ha cambiado de nombre varias veces: LEB (hasta 2007),
-# LEB Oro y Primera FEB (desde 2024) son el segundo nivel; LEB 2, LEB Plata y
-# Segunda FEB, el tercero; Liga EBA y Tercera FEB, el cuarto. La LEB Bronce
-# existió unos años entre Plata y EBA.
+
 CATEGORIAS = {
     "LEB": "primera_feb", "LEB ORO": "primera_feb", "ORO": "primera_feb", "PRIMERA FEB": "primera_feb",
     "LEB 2": "segunda_feb", "LEB PLATA": "segunda_feb", "PLATA": "segunda_feb", "SEGUNDA FEB": "segunda_feb",
@@ -54,7 +51,6 @@ def construir_temporadas(rankings):
     totales = (
         conteo.assign(columna=conteo["estadistica"].map(ESTADISTICAS_CONTEO))
         .pivot_table(index=CLAVE, columns="columna", values="total", aggfunc="sum")
-        # Todas las columnas existen aunque no se haya descargado alguna estadística.
         .reindex(columns=list(ESTADISTICAS_CONTEO.values()))
     )
 
@@ -65,7 +61,6 @@ def construir_temporadas(rankings):
     )
     tiros.columns = [f"{tipo}_{medida}" for medida, tipo in tiros.columns]
 
-    # Partidos: del ranking de minutos y, si falta, el máximo de los demás.
     partidos_minutos = (
         df[df["estadistica"] == "Minutos jugados"].groupby(CLAVE)["partidos"].sum()
     )
@@ -92,15 +87,9 @@ def construir_temporadas(rankings):
     return calcular_derivadas(tabla)
 
 
-# La ficha separa los totales por fases y sus códigos cambian según la
-# temporada y la competición (LR, GR, 1ª, 2ª, R2, PO, CP...). En lugar de
-# adivinar qué código es la liga regular en cada caso, se prueba: primero
-# "LR", luego cada fase por separado y por último la suma de todas, y se
-# elige la primera cuyos minutos y puntos coinciden con los del ranking, que
-# solo cuenta la liga regular. Si ninguna coincide, se descarta la ficha.
 COLUMNAS_SOLO_FICHA = ["tc_anotados", "tc_intentados", "tapones_contra", "mates",
                        "faltas_cometidas", "faltas_recibidas"]
-TOLERANCIA = 0.02  # diferencia relativa admitida en minutos y puntos (redondeos)
+TOLERANCIA = 0.02  
 
 
 def candidatos_ficha(totales):

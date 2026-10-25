@@ -10,7 +10,6 @@ CARPETA_PROCESSED = Path("data/processed")
 
 COLUMNAS_PORCENTAJE = ["t2_pct", "t3_pct", "tl_pct"]
 COLUMNAS_TEXTO = ["id_acb", "temporada", "club"]
-# Estadísticas que acb.com publica como media por partido.
 MEDIAS_POR_PARTIDO = [
     "minutos", "puntos", "t2_anotados", "t2_intentados",
     "t3_anotados", "t3_intentados", "tl_anotados", "tl_intentados",
@@ -18,8 +17,6 @@ MEDIAS_POR_PARTIDO = [
     "perdidas", "tapones_favor", "tapones_contra", "mates",
     "faltas_cometidas", "faltas_recibidas", "valoracion",
 ]
-# Las que tiene sentido expresar por 40 minutos para comparar jugadores con
-# distinto tiempo en pista.
 POR_40_MINUTOS = [
     "puntos", "rebotes", "reb_of", "reb_def", "asistencias", "recuperaciones",
     "perdidas", "tapones_favor", "valoracion", "t3_intentados", "tl_intentados",
@@ -29,7 +26,6 @@ POR_40_MINUTOS = [
 # --- Conversión de valores ------------------------------------------------------
 
 def a_numero(valor):
-    """'11,7' -> 11.7 · '0.8' -> 0.8 · '55,6 %' -> 55.6 · '1.234,5' -> 1234.5 · '' -> NaN"""
     if pd.isna(valor):
         return float("nan")
     texto = str(valor).strip().replace("%", "").replace("m", "").strip()
@@ -55,7 +51,6 @@ def a_minutos(valor):
 
 
 def anio_inicio(temporada):
-    """'24-25' -> 2024 · '95-96' -> 1995"""
     if not isinstance(temporada, str) or not re.fullmatch(r"\d{2}-\d{2}", temporada):
         return pd.NA
     yy = int(temporada[:2])
@@ -63,11 +58,6 @@ def anio_inicio(temporada):
 
 
 def normalizar_nombre(nombre):
-    """Minúsculas, sin tildes y con las palabras ordenadas.
-
-    Sirve para emparejar a un jugador entre fuentes que escriben el nombre en
-    distinto orden: 'PÉREZ GARCÍA, JUAN' (FEB) y 'juan-perez-garcia' (ACB).
-    """
     if not isinstance(nombre, str):
         return ""
     texto = unicodedata.normalize("NFKD", nombre)
@@ -93,16 +83,8 @@ def limpiar_temporadas(df):
 
 
 def agregar_por_temporada(df):
-    """Una fila por jugador y temporada, juntando los clubes si hubo traspaso.
-
-    Se suman los totales y después se vuelven a calcular las medias, porque
-    promediar las medias de dos clubes daría el mismo peso a 5 partidos que a 30.
-    """
     totales = [f"{c}_total" for c in MEDIAS_POR_PARTIDO if f"{c}_total" in df]
     df = df.copy()
-    # Para los porcentajes de tiro se usa la media ponderada por intentos. Con un
-    # solo club coincide con el porcentaje publicado por acb.com, que es más
-    # exacto que recalcularlo desde medias redondeadas.
     for tipo in ("t2", "t3", "tl"):
         if f"{tipo}_pct" in df and f"{tipo}_intentados_total" in df:
             df[f"_{tipo}_ponderado"] = df[f"{tipo}_pct"] * df[f"{tipo}_intentados_total"]
@@ -135,8 +117,6 @@ def limpiar_jugadores(df):
     if "altura" in df:
         df["altura_cm"] = (df["altura"].map(a_numero) * 100).round()
     if "fecha_nacimiento" in df:
-        # Solo se conserva el año: basta para calcular la edad en cada temporada
-        # y evita guardar la fecha exacta, que es un dato personal.
         fecha = pd.to_datetime(df["fecha_nacimiento"], format="%d/%m/%Y", errors="coerce")
         df["anio_nacimiento"] = fecha.dt.year.astype("Int64")
         df = df.drop(columns="fecha_nacimiento")
@@ -150,7 +130,6 @@ def limpiar_jugadores(df):
 # --- Validación --------------------------------------------------------------------
 
 def validar_temporadas(df):
-    """Lista de problemas de calidad encontrados. Vacía si todo está bien."""
     problemas = []
     for columna in COLUMNAS_PORCENTAJE:
         if columna in df:
@@ -162,7 +141,6 @@ def validar_temporadas(df):
         if negativos:
             problemas.append(f"minutos: {negativos} valores negativos")
     if "minutos" in df:
-        # Son minutos por partido: más de 50 es imposible incluso con prórrogas.
         excesivos = (df["minutos"] > 50).sum()
         if excesivos:
             problemas.append(f"minutos: {excesivos} filas con más de 50 minutos por partido")

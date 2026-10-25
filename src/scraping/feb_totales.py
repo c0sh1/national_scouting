@@ -36,7 +36,7 @@ def pares_desde_cache(carpeta=CARPETA_RANKINGS, archivo=ARCHIVO_PARES):
         partes = ruta.stem.split("_")
         competicion = PREFIJOS_COMPETICION.get(partes[0])
         if competicion is None or len(partes) < 2 or not partes[1].isdigit():
-            continue  # páginas de exploración u otras
+            continue 
         temporada = int(partes[1])
         for i, c in RE_ENLACE.findall(ruta.read_text(encoding="utf-8", errors="ignore")):
             pares.setdefault((c, i), (competicion, temporada))

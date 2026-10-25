@@ -1,8 +1,7 @@
-
 import numpy as np
 import pandas as pd
 
-from src.modelo import (VARIABLES, captura_en_top, grupo_puesto, preparar_variables,
+from src.modelo import (VARIABLES, captura_en_top, explicar, grupo_puesto, preparar_variables,
                         puesto_normalizado, separar)
 
 
@@ -62,3 +61,11 @@ def test_puesto_normalizado():
              "Ala pívor": "Ala-Pívot", "Pívot": "Pívot", "Pivot": "Pívot", "": None, None: None}
     for ficha, esperado in casos.items():
         assert puesto_normalizado(ficha) == esperado, ficha
+
+
+def test_explicar_no_usa_variables_sin_dato():
+    contribucion = pd.Series({"edad": 0.8, "tapones_favor_40": -0.9, "tl_falta": -0.5, "minutos_partido": -0.2})
+    valores = pd.Series({"edad": 21.0, "tapones_favor_40": np.nan, "tl_falta": 0.0, "minutos_partido": 20.0})
+    a_favor, en_contra = explicar(contribucion, valores)
+    assert a_favor == ["edad (21)"]
+    assert en_contra == ["minutos por partido (20.0)"]      

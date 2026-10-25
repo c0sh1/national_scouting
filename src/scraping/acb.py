@@ -48,7 +48,6 @@ ETIQUETAS_BIO = {
 VALIDADORES_BIO = {
     "posicion": lambda v: re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúÑñ /-]{3,30}", v),
     "altura": lambda v: re.fullmatch(r"\d,\d{2}\s*m", v),
-    # En jugadores en activo la fecha llega con la edad detrás: "19/01/1996 (30 años)".
     "fecha_nacimiento": lambda v: re.match(r"\d{2}/\d{2}/\d{4}", v),
     "nacionalidad": lambda v: len(v) >= 2 and not v[0].isdigit() and v not in ETIQUETAS_BIO,
     # Códigos vistos: JFL, ESP, EUR, EUR-F, EXT, COT.

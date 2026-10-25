@@ -21,7 +21,6 @@ class WebFalsa:
     def _pagina(self, estado):
         inicio = (estado["pagina"] - 1) * POR_PAGINA
         ids = range(inicio, min(inicio + POR_PAGINA, self.jugadores))
-        # Con el filtro nacional solo salen los jugadores pares.
         if estado["proc"] == feb.PROCEDENCIA_NACIONAL:
             ids = [i for i in ids if i % 2 == 0]
         filas = "".join(
@@ -70,13 +69,12 @@ def test_descarga_temporada_recorre_fase_estadisticas_y_paginas(tmp_path, monkey
     datos = feb.unir_partes()
 
     puntos = datos[(datos["estadistica"] == "Puntos") & ~datos["solo_nacionales"]]
-    assert len(puntos) == 65                       # 3 páginas: 30 + 30 + 5
+    assert len(puntos) == 65                       
     assert set(puntos["fase"]) == {"Liga Regular Único"}
     nacionales = datos[datos["solo_nacionales"]]
-    assert len(nacionales) == 33                   # los pares de 0 a 64
+    assert len(nacionales) == 33                 
     assert set(nacionales["estadistica"]) == {"Minutos jugados"}
 
-    # Al relanzar no se repite nada: las partes ya están en disco.
     peticiones = web.peticiones
     feb.descargar_temporada(web, "primera_feb", 2025, ["Puntos"])
-    assert web.peticiones == peticiones + 1        # solo la carga inicial de la página
+    assert web.peticiones == peticiones + 1        

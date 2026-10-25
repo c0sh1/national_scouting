@@ -24,16 +24,16 @@ FICHA = f"""
 
 def test_totales_usa_la_tabla_de_totales_y_separa_tiros():
     temporada, filas = parsear_totales(FICHA)
-    assert temporada == 2024                      # la elegida, no la primera del desplegable
+    assert temporada == 2024                      
     assert len(filas) == 2
     lr = filas[0]
     assert lr["fase"] == "LR"
     assert abs(lr["minutos"] - 120.7167) < 0.001
     assert (lr["t2_anotados"], lr["t2_intentados"]) == (18, 27)
     assert (lr["tl_anotados"], lr["tl_intentados"]) == (1, 1)
-    assert lr["tapones_contra"] == 2 and lr["mates"] == 1      # el segundo "TC" son tapones
+    assert lr["tapones_contra"] == 2 and lr["mates"] == 1      
     assert lr["faltas_recibidas"] == 10
-    assert filas[1]["fase"] is None                # fila de total sin fase
+    assert filas[1]["fase"] is None               
 
 
 def test_temporada_sin_desplegable():

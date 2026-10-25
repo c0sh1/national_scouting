@@ -16,7 +16,6 @@ def _fila(id_feb, estadistica, total=None, partidos=10, anotados=None, intentado
 
 def _rankings():
     return pd.DataFrame([
-        # Jugador 1: jugó en dos grupos de liga regular la misma temporada.
         _fila("1", "Minutos jugados", 200, 10, fase="GRUPO A"),
         _fila("1", "Minutos jugados", 100, 5, fase="GRUPO B"),
         _fila("1", "Puntos", 80, 10, fase="GRUPO A"),
@@ -26,7 +25,6 @@ def _rankings():
         _fila("1", "% Tiros de 3", None, 10, anotados=12, intentados=30, fase="GRUPO A"),
         _fila("1", "% Tiros de 3", None, 5, anotados=3, intentados=10, fase="GRUPO B"),
         _fila("1", "Minutos jugados", 200, 10, solo_nacionales=True, fase="GRUPO A"),
-        # Jugador 2: extranjero, sin datos de triples (pocos intentos).
         _fila("2", "Minutos jugados", 400, 20),
         _fila("2", "Puntos", 300, 20),
     ])
@@ -40,9 +38,9 @@ def test_una_fila_por_jugador_y_temporada():
     assert uno["minutos"] == 300
     assert uno["puntos"] == 120
     assert uno["minutos_partido"] == 20
-    assert uno["puntos_40"] == 16          # 40 * 120 / 300
+    assert uno["puntos_40"] == 16          
     assert uno["rebotes"] == 30
-    assert uno["t3_pct"] == 37.5           # 15 / 40, sumando los dos grupos
+    assert uno["t3_pct"] == 37.5           
 
 
 def test_nacional_y_tiros_que_faltan():
@@ -72,7 +70,7 @@ def test_validacion():
 
 def test_estadistica_de_conteo_ausente_es_cero():
     tabla = construir_temporadas(_rankings()).set_index("id_feb")
-    assert tabla.loc["2", "asistencias"] == 0      # tiene minutos pero no sale en el ranking
+    assert tabla.loc["2", "asistencias"] == 0      
     assert tabla.loc["2", "rebotes"] == 0
 
 
@@ -94,11 +92,9 @@ def _totales(minutos_j2=400, temporada_pagina=2020):
             "tc_anotados": 50, "tc_intentados": 110, "tapones_contra": 3, "mates": 2,
             "faltas_cometidas": 40, "faltas_recibidas": 60}
     return pd.DataFrame([
-        # Jugador 2: el ranking no tenía sus triples (pocos intentos); la ficha sí.
         {**base, "id_feb": "2", "i": "77", "temporada_pagina": temporada_pagina,
          "minutos": minutos_j2, "puntos": 300, "t2_anotados": 40, "t2_intentados": 80,
          "t3_anotados": 4, "t3_intentados": 15, "tl_anotados": 20, "tl_intentados": 30},
-        # Fila de play-off: no se suma a la liga regular.
         {**base, "id_feb": "2", "i": "77", "temporada_pagina": temporada_pagina, "fase": "PO",
          "minutos": 50, "puntos": 30, "t2_anotados": 5, "t2_intentados": 9,
          "t3_anotados": 1, "t3_intentados": 2, "tl_anotados": 2, "tl_intentados": 2},
@@ -119,7 +115,7 @@ def test_ficha_completa_los_tiros_que_faltaban():
 def test_ficha_que_no_coincide_se_descarta():
     tabla, resumen = integrar_totales(construir_temporadas(_rankings()), _totales(minutos_j2=999))
     dos = tabla.set_index("id_feb").loc["2"]
-    assert bool(dos["t3_falta"])                    # se queda el dato (vacío) del ranking
+    assert bool(dos["t3_falta"])                    
     assert pd.isna(dos["faltas_recibidas"])
     assert resumen["descartadas_por_no_coincidir"] == 1
 
@@ -131,7 +127,7 @@ def test_ficha_de_otra_temporada_no_se_usa():
 
 def test_si_no_hay_lr_se_elige_la_fase_que_coincide():
     totales = _totales()
-    totales["fase"] = ["1ª", "PO"]               # la liga regular viene con otro código
+    totales["fase"] = ["1ª", "PO"]               
     tabla, resumen = integrar_totales(construir_temporadas(_rankings()), totales)
     assert resumen["fase_elegida"] == {"1ª": 1}
     assert tabla.set_index("id_feb").loc["2", "t3_intentados"] == 15
@@ -141,7 +137,7 @@ def test_suma_de_fases_cuando_la_liga_regular_esta_partida():
     totales = _totales()
     totales["fase"] = ["1ª", "2ª"]
     totales.loc[0, ["minutos", "puntos"]] = [300, 200]
-    totales.loc[1, ["minutos", "puntos"]] = [100, 100]   # 300 + 100 = 400 min, 300 puntos
+    totales.loc[1, ["minutos", "puntos"]] = [100, 100]   
     tabla, resumen = integrar_totales(construir_temporadas(_rankings()), totales)
     assert resumen["fase_elegida"] == {"todas": 1}
-    assert tabla.set_index("id_feb").loc["2", "t3_intentados"] == 17     # 15 + 2
+    assert tabla.set_index("id_feb").loc["2", "t3_intentados"] == 17    

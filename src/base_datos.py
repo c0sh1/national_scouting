@@ -46,8 +46,6 @@ CREATE TABLE trayectorias_feb (
 );
 """
 
-# Tablas anchas (muchas columnas de estadísticas): se crean desde el CSV y se
-# les añade un índice único sobre su clave.
 TABLAS_ANCHAS = {
     "temporadas_acb": ("temporadas.csv", ["id_acb", "anio"]),
     "temporadas_acb_club": ("temporadas_por_club.csv", ["id_acb", "temporada", "club"]),
@@ -119,8 +117,7 @@ def construir(ruta=RUTA_DB, tablas=None, anchas=None):
 
     ruta = Path(ruta)
     ruta.unlink(missing_ok=True)
-    # closing() cierra la conexión al terminar; sin él, Windows mantiene el
-    # archivo bloqueado y no se podría regenerar la base en la misma sesión.
+
     with closing(sqlite3.connect(ruta)) as conexion:
         conexion.executescript(ESQUEMA)
         for nombre, datos in tablas.items():

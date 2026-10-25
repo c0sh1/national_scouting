@@ -20,7 +20,7 @@ def test_ficha_feb():
     assert bio == {"anio_nacimiento": 1991, "altura_cm": 208, "puesto": "A-Pivot", "nacionalidad": "ESPAÑA"}
     assert trayectoria[0] == {"temporada": "09/10", "categoria": "EBA",
                               "club": "ESTUDIANTES [ASEFA ESTUDIANTES]"}
-    assert len(trayectoria) == 2          # la temporada como entrenador no se guarda
+    assert len(trayectoria) == 2         
 
 
 def test_enlaces_con_y_sin_entidad_html():
