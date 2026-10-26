@@ -4,7 +4,7 @@ Herramienta para que un club ACB de presupuesto medio, sin departamento de
 datos, encuentre en Primera FEB y Segunda FEB a jugadores nacionales con
 posibilidades reales de asentarse en la ACB.
 
-**Aplicación:** (https://nationalscouting-juh2ruuenbunbpvfay5nun.streamlit.app/)
+**Aplicación:** [nationalscouting.streamlit.app](https://nationalscouting-juh2ruuenbunbpvfay5nun.streamlit.app/)
 
 ---
 
@@ -161,26 +161,32 @@ Cuaderno `notebooks/03_modelo.ipynb`; código común en `src/modelo.py`.
 
 - **Candidatos:** ranking de los jugadores de 2023-2025 por probabilidad, con
   filtros de temporada, competición, edad, posición y pasaporte.
-- **Ficha y comparables:** probabilidad, motivos a favor y en contra, evolución
-  en la FEB y los 10 jugadores históricos con el perfil más parecido a su edad,
-  indicando si llegaron a asentarse.
+- **Ficha y comparables:** se elige temporada, posición y jugador; muestra
+  probabilidad, motivos a favor y en contra, evolución en la FEB, los 10
+  jugadores históricos con el perfil más parecido a su edad (indicando si
+  llegaron a asentarse) y un gráfico de araña con sus percentiles frente a los
+  jugadores de su misma posición y liga, que permite compararlo con otro jugador.
 - **Evaluar un jugador:** formulario manual o subida de un CSV (con plantilla
   descargable) para jugadores que no están en la base; devuelve probabilidad,
   motivos, comparación con la media histórica y comparables.
 - **Liga U:** ranking descriptivo (solo hay una temporada, sin desenlace aún).
 - **Sobre el modelo:** métricas y limitaciones.
 
-PENDIENTE: capturas en `docs/`.
+![Candidatos](docs/candidatos.png)
+
+![Ficha y gráfico de araña](docs/ficha.png)
+
+![Evaluar un jugador](docs/evaluar.png)
 
 ## 6. Instalación y ejecución
 
 Requisitos: Python 3.11 o superior.
 
 ```bash
-git clone <url-del-repositorio>
+git clone https://github.com/c0sh1/national_scouting
 cd national_scouting
 python -m venv .venv
-.venv\Scripts\activate             # Linux/Mac: source .venv/bin/activate
+.venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
@@ -198,10 +204,10 @@ python -m pytest
 ```
 
 **Repetir todo el proceso desde cero** (opcional; la descarga completa lleva
-varias horas):
+varias horas). Antes, crear un archivo `.env` en la raíz con la línea
+`CONTACTO_SCRAPER=tu_correo@ejemplo.com`.
 
 ```bash
-cp .env.example .env                 # y poner un correo en CONTACTO_SCRAPER
 python -m src.scraping.acb
 python -m src.scraping.feb --competicion primera_feb segunda_feb --temporadas 2005-2025
 python -m src.scraping.feb --competicion liga_u --temporadas 2025
