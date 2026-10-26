@@ -1,3 +1,4 @@
+"""Limpieza de la FEB: una fila por jugador y temporada, y trayectorias por categoría."""
 
 from pathlib import Path
 
@@ -5,6 +6,7 @@ import pandas as pd
 
 CARPETA_RAW = Path("data/raw")
 CARPETA_PROCESSED = Path("data/processed")
+# Una fila por jugador, competición y temporada.
 CLAVE = ["id_feb", "competicion", "temporada"]
 
 ESTADISTICAS_CONTEO = {
@@ -24,6 +26,7 @@ ESTADISTICAS_TIRO = {
     "% Tiros Libres": "tl",
 }
 
+# La FEB al cambiar de nombres de sus ligas durante años, las unificamos.
 CATEGORIAS = {
     "LEB": "primera_feb", "LEB ORO": "primera_feb", "ORO": "primera_feb", "PRIMERA FEB": "primera_feb",
     "LEB 2": "segunda_feb", "LEB PLATA": "segunda_feb", "PLATA": "segunda_feb", "SEGUNDA FEB": "segunda_feb",
@@ -80,6 +83,7 @@ def construir_temporadas(rankings):
     columnas_conteo = [c for c in ESTADISTICAS_CONTEO.values() if c != "minutos"]
     con_minutos = tabla["minutos"].notna()
     tabla.attrs["ceros_rellenados"] = tabla.loc[con_minutos, columnas_conteo].isna().sum()
+    # El ranking no lista los ceros: si jugó minutos y no aparece, esa estadística = 0.
     tabla.loc[con_minutos, columnas_conteo] = tabla.loc[con_minutos, columnas_conteo].fillna(0)
 
     ids_nacionales = set(map(tuple, nacionales[CLAVE].astype({"id_feb": str}).values))
@@ -89,6 +93,7 @@ def construir_temporadas(rankings):
 
 COLUMNAS_SOLO_FICHA = ["tc_anotados", "tc_intentados", "tapones_contra", "mates",
                        "faltas_cometidas", "faltas_recibidas"]
+# Diferencia máxima de 2 % entre ficha y ranking para dar los datos de la ficha por buenos.
 TOLERANCIA = 0.02  
 
 
@@ -101,15 +106,13 @@ def candidatos_ficha(totales):
     por_fase = validos.groupby(CLAVE + ["fase"])[numericas].sum(min_count=1).reset_index()
     todas = validos.groupby(CLAVE)[numericas].sum(min_count=1).reset_index().assign(fase="todas")
     candidatos = pd.concat([por_fase, todas], ignore_index=True)
+    # Se prefiere la liga regular (LR). La suma de todas las fases, en último lugar.
     candidatos["prioridad"] = candidatos["fase"].map({"LR": 0, "todas": 2}).fillna(1)
     return candidatos
 
 
 def integrar_totales(tabla, totales):
-    """Completa la tabla de los rankings con los totales de las fichas.
-
-    Devuelve la tabla y un resumen de la comprobación ficha-ranking.
-    """
+    """Completa la tabla de los rankings con los totales de las fichas. Devuelve la tabla y un resumen de la comprobación ficha-ranking."""
     totales = totales.copy()
     totales["id_feb"] = totales["id_feb"].astype(str)
     candidatos = candidatos_ficha(totales)
@@ -149,6 +152,7 @@ def integrar_totales(tabla, totales):
 
 
 def calcular_derivadas(tabla):
+    """Añade rebotes, minutos por partido, estadísticas por 40 minutos y % de tiro."""
     tabla = tabla.copy()
     if {"reb_of", "reb_def"} <= set(tabla.columns):
         tabla["rebotes"] = tabla["reb_of"] + tabla["reb_def"]
@@ -172,6 +176,7 @@ def calcular_derivadas(tabla):
 
 
 def validar(tabla):
+    """Lista de problemas de calidad: minutos imposibles, más anotados que intentados..."""
     problemas = []
     excesivos = (tabla["minutos_partido"] > 45).sum()
     if excesivos:
@@ -187,20 +192,13 @@ def validar(tabla):
 
 
 def anio_temporada(texto):
-    """'09/10' -> 2009 · '97/98' -> 1997"""
+    """'09/10' -> 2009 · '97/98' -> 1997. SIempre el año de inicio de la temporada."""
     yy = int(texto[:2])
     return 1900 + yy if yy >= 50 else 2000 + yy
 
 
 def limpiar_trayectorias(trayectorias):
-    """Unifica los nombres de categoría y quita las que no son de la pirámide
-    masculina.
-
-    Las únicas categorías que quedan fuera son de la Liga Femenina: 19 filas,
-    todas entre 1997 y 2000 en clubes femeninos, de jugadores masculinos.
-    Probablemente son licencias de otros cargos registradas como de jugador en
-    el sistema antiguo de la FEB; además están fuera del periodo analizado.
-    """
+    """Unifica los nombres de categoría y quita las que no son de la pirámide masculina. Devuelve la tabla limpia y las filas excluidas."""
     tabla = trayectorias.copy()
     tabla["id_feb"] = tabla["id_feb"].astype(str)
     tabla["anio"] = tabla["temporada"].map(anio_temporada)
@@ -211,6 +209,7 @@ def limpiar_trayectorias(trayectorias):
 
 
 def main():
+    """Crea feb_temporadas.csv, feb_trayectorias.csv y el informe de calidad de la FEB."""
     rankings = pd.read_csv(CARPETA_RAW / "feb_rankings.csv", dtype={"id_feb": str})
     tabla = construir_temporadas(rankings)
     ceros = tabla.attrs.get("ceros_rellenados", pd.Series(dtype=int))

@@ -1,3 +1,4 @@
+"""Cruza los jugadores de la ACB con los de la FEB por año de nacimiento y nombre."""
 
 import re
 import unicodedata
@@ -12,11 +13,12 @@ CARPETA_PROCESSED = Path("data/processed")
 PALABRAS_IGNORADAS = {"de", "del", "la", "las", "los", "y", "da", "das", "do", "dos",
                       "van", "von", "jr", "ii", "iii", "iv"}
 
+# Parecido mínimo para aceptar nombres como Sergi/Sergio o Ion/Jon.
 PARECIDO_MINIMO = 0.65
 
 
 def palabras(nombre):
-    """Conjunto de palabras normalizadas: minúsculas, sin tildes ni partículas."""
+    """Conjunto de palabras normalizadas: minúsculas. Sin tildes."""
     if not isinstance(nombre, str):
         return frozenset()
     texto = unicodedata.normalize("NFKD", nombre)
@@ -25,11 +27,12 @@ def palabras(nombre):
 
 
 def palabras_slug(slug):
-    """Palabras del nombre ACB en orden, a partir de la URL ('victor-arteaga')."""
+    """Palabras del nombre ACB en orden, a partir de la URL."""
     return [p for p in palabras_ordenadas(slug.replace("-", " ")) if p not in PALABRAS_IGNORADAS]
 
 
 def palabras_ordenadas(texto):
+    """Palabras del texto en orden, en minúsculas y sin tildes."""
     texto = unicodedata.normalize("NFKD", texto or "")
     texto = "".join(c for c in texto if not unicodedata.combining(c)).lower()
     return re.findall(r"[a-z]+", texto)
@@ -52,10 +55,12 @@ def candidatos(acb, feb):
         nombre = palabras_slug(fila.slug)
         if not nombre:
             continue
+        # 1. Todas las palabras del nombre ACB están en el nombre FEB.
         completos = [f.id_feb for f in grupo.itertuples() if set(nombre) <= f.palabras]
         if completos:
             pares += [(fila.id_acb, id_feb, "completo") for id_feb in completos]
             continue
+        # 2. Si no, basta con el nombre y el apellido (primera y última palabra).
         extremos = {nombre[0], nombre[-1]}
         parciales = [f.id_feb for f in grupo.itertuples() if extremos <= f.palabras]
         if parciales:
@@ -63,21 +68,18 @@ def candidatos(acb, feb):
             continue
         if len(nombre) < 2:
             continue
+        # 3. Si no, mismo apellido (última palabra) y un nombre parecido.
         parecidos = [f.id_feb for f in grupo.itertuples()
                      if nombre[-1] in f.palabras and nombre_parecido(nombre[0], nombre[-1], f.palabras)]
         pares += [(fila.id_acb, id_feb, "nombre_parecido") for id_feb in parecidos]
     return pd.DataFrame(pares, columns=["id_acb", "id_feb", "metodo"])
 
+# Métodos de emparejamiento, del más fiable al menos fiable.
 METODOS = ["completo", "nombre_y_apellido", "nombre_parecido"]
 
 
 def resolver(pares):
-    """Separa los emparejamientos únicos de los dudosos.
-
-    Si un jugador FEB lo reclaman varios jugadores ACB con métodos distintos,
-    solo cuentan las reclamaciones del método más fiable: un nombre parecido
-    no puede anular un emparejamiento por nombre completo.
-    """
+    """Separa los emparejamientos únicos de los dudosos."""
     if pares.empty:
         return pares.copy(), pares.copy()
     rango = pares["metodo"].map(METODOS.index)
@@ -101,6 +103,7 @@ def preparar_feb(fichas, temporadas):
 
 
 def main():
+    """Crea emparejamiento.csv y emparejamiento_dudosos.csv y muestra un resumen para revisar."""
     acb = pd.read_csv(CARPETA_PROCESSED / "jugadores.csv", dtype={"id_acb": str})
     fichas = pd.read_csv(CARPETA_RAW / "feb_jugadores.csv", dtype={"id_feb": str})
     temporadas_feb = pd.read_csv(CARPETA_PROCESSED / "feb_temporadas.csv", dtype={"id_feb": str})

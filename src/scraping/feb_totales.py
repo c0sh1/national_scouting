@@ -1,5 +1,5 @@
 "Scraping de la web de la FEB: totales por temporada y fase desde las fichas de jugador."
-"La fase se elige comparando minutos y puntos con el ranking, porque su nombre cambia según la temporada · la segunda columna “TC” son tapones en contra"
+"La fase se elige comparando minutos y puntos con el ranking, porque su nombre cambia según la temporada"
 
 import argparse
 import logging
@@ -29,6 +29,7 @@ PREFIJOS_COMPETICION = {nombre.replace("_", "-"): nombre for nombre in COMPETICI
 
 
 def pares_desde_cache(carpeta=CARPETA_RANKINGS, archivo=ARCHIVO_PARES):
+    """Jugador, equipo, competición y temporada sacados de los rankings ya descargados. Se guardan en otro CSV."""
     if archivo.exists():
         return pd.read_csv(archivo, dtype={"c": str, "i": str})
     pares = {}
@@ -49,6 +50,7 @@ def pares_desde_cache(carpeta=CARPETA_RANKINGS, archivo=ARCHIVO_PARES):
 
 
 def a_numero(texto):
+    """Texto de la web a número: "25:30" = 25,5 minutos y "1.234,5" = 1234.5. "None" si no es un número."""
     texto = (texto or "").strip()
     if ":" in texto:
         minutos, segundos = texto.split(":")
@@ -60,6 +62,7 @@ def a_numero(texto):
 
 
 def temporada_mostrada(soup):
+    """Temporada que muestra la ficha (2024 para "2024/2025")"""
     for desplegable in soup.find_all("select"):
         elegida = desplegable.find("option", selected=True)
         if elegida and re.fullmatch(r"\d{4}/\d{4}", elegida.get_text(strip=True)):
@@ -72,6 +75,7 @@ def temporada_mostrada(soup):
 
 
 def parsear_totales(html):
+    """Temporada de la ficha y sus totales por fase. Los tiros se separan en anotados/intentados."""
     soup = BeautifulSoup(html, "html.parser")
     temporada = temporada_mostrada(soup)
     filas = []
@@ -103,6 +107,7 @@ def parsear_totales(html):
 
 
 def main():
+    """Descarga las fichas de cada temporada y guarda los totales en data/raw/feb_totales.csv."""
     parser = argparse.ArgumentParser(description="Totales por temporada desde las fichas de la FEB")
     parser.add_argument("--limite", type=int)
     parser.add_argument("--pausa", type=float, default=1.0)
@@ -124,6 +129,7 @@ def main():
     for n, par in enumerate(pares.itertuples(), start=1):
         if n % 500 == 0:
             log.info("Procesadas %d de %d fichas", n, len(pares))
+        """Si la ficha ya se descargó en feb_fichas.py, se reutiliza en vez de pedirla otra vez."""
         nombre_cache = f"{par.c}.html" if base.get(par.c) == par.i else f"{par.c}_{par.i}.html"
         html = cliente.get(f"{BASE}/Jugador.aspx?i={par.i}&c={par.c}", nombre_cache)
         if not html:

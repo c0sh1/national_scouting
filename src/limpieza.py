@@ -1,3 +1,4 @@
+"""Limpieza de la ACB: temporadas por jugador y datos de cada jugador."""
 
 import re
 import unicodedata
@@ -10,6 +11,7 @@ CARPETA_PROCESSED = Path("data/processed")
 
 COLUMNAS_PORCENTAJE = ["t2_pct", "t3_pct", "tl_pct"]
 COLUMNAS_TEXTO = ["id_acb", "temporada", "club"]
+# acb.com da medias por partido: con ellas se calculan los totales.
 MEDIAS_POR_PARTIDO = [
     "minutos", "puntos", "t2_anotados", "t2_intentados",
     "t3_anotados", "t3_intentados", "tl_anotados", "tl_intentados",
@@ -26,6 +28,7 @@ POR_40_MINUTOS = [
 # --- Conversión de valores ------------------------------------------------------
 
 def a_numero(valor):
+    """Texto de acb.com a número: "15,5" = 15.5 | "45%" = 45 | "-" = NaN."""
     if pd.isna(valor):
         return float("nan")
     texto = str(valor).strip().replace("%", "").replace("m", "").strip()
@@ -42,7 +45,7 @@ def a_numero(valor):
 
 
 def a_minutos(valor):
-    """'23:06' -> 23.1 · '1234:30' -> 1234.5"""
+    """'23:06' = 23.1 | '1234:30' = 1234.5"""
     try:
         minutos, segundos = str(valor).strip().split(":")
         return int(minutos) + int(segundos) / 60
@@ -51,6 +54,7 @@ def a_minutos(valor):
 
 
 def anio_inicio(temporada):
+    """Año en que empieza la temporada: "24-25" = 2024."""
     if not isinstance(temporada, str) or not re.fullmatch(r"\d{2}-\d{2}", temporada):
         return pd.NA
     yy = int(temporada[:2])
@@ -58,6 +62,7 @@ def anio_inicio(temporada):
 
 
 def normalizar_nombre(nombre):
+    """Nombre sin tildes, en minúsculas y con las palabras ordenadas. Para comparar."""
     if not isinstance(nombre, str):
         return ""
     texto = unicodedata.normalize("NFKD", nombre)
@@ -69,6 +74,7 @@ def normalizar_nombre(nombre):
 # --- Limpieza de tablas -----------------------------------------------------------
 
 def limpiar_temporadas(df):
+    """Pasa los textos a números y calcula los totales de cada temporada y club."""
     df = df.copy()
     df["id_acb"] = df["id_acb"].astype(str)
     for columna in df.columns:
@@ -78,15 +84,18 @@ def limpiar_temporadas(df):
     df = df.dropna(subset=["anio"]).drop_duplicates()
     for columna in MEDIAS_POR_PARTIDO:
         if columna in df:
+            # Total = media por partido "x" partidos.
             df[f"{columna}_total"] = df[columna] * df["partidos"]
     return df.sort_values(["id_acb", "anio"]).reset_index(drop=True)
 
 
 def agregar_por_temporada(df):
+    """Una fila por jugador y temporada, sumando los clubes si cambió a mitad de temporada."""
     totales = [f"{c}_total" for c in MEDIAS_POR_PARTIDO if f"{c}_total" in df]
     df = df.copy()
     for tipo in ("t2", "t3", "tl"):
         if f"{tipo}_pct" in df and f"{tipo}_intentados_total" in df:
+             """El % de tiro se pondera por intentos"""
             df[f"_{tipo}_ponderado"] = df[f"{tipo}_pct"] * df[f"{tipo}_intentados_total"]
 
     ponderados = [c for c in df.columns if c.endswith("_ponderado")]
@@ -112,6 +121,7 @@ def agregar_por_temporada(df):
 
 
 def limpiar_jugadores(df):
+    """Altura en cm, solo el año de nacimiento y si es español o JFL."""
     df = df.copy()
     df["id_acb"] = df["id_acb"].astype(str)
     if "altura" in df:
@@ -119,6 +129,7 @@ def limpiar_jugadores(df):
     if "fecha_nacimiento" in df:
         fecha = pd.to_datetime(df["fecha_nacimiento"], format="%d/%m/%Y", errors="coerce")
         df["anio_nacimiento"] = fecha.dt.year.astype("Int64")
+        # Se borra la fecha completa. Solo se guarda el año.
         df = df.drop(columns="fecha_nacimiento")
     nacionalidad = df.get("nacionalidad", pd.Series("", index=df.index)).fillna("")
     df["es_espanol"] = nacionalidad.str.contains(r"españa|espanola|española|spain", case=False)
@@ -130,6 +141,7 @@ def limpiar_jugadores(df):
 # --- Validación --------------------------------------------------------------------
 
 def validar_temporadas(df):
+    """Lista de problemas de calidad: porcentajes imposibles, minutos raros..."""
     problemas = []
     for columna in COLUMNAS_PORCENTAJE:
         if columna in df:
@@ -168,6 +180,7 @@ def validar_temporadas(df):
 
 
 def main():
+    """Crea temporadas_por_club.csv, temporadas.csv, jugadores.csv y el informe de calidad."""
     CARPETA_PROCESSED.mkdir(parents=True, exist_ok=True)
     temporadas = limpiar_temporadas(pd.read_csv(CARPETA_RAW / "acb_temporadas.csv", dtype=str))
     jugadores = limpiar_jugadores(pd.read_csv(CARPETA_RAW / "acb_jugadores.csv", dtype=str))

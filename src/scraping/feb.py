@@ -29,6 +29,7 @@ CONTROL_ESTADISTICA = PREFIJO + "rankingsDropDownList"
 CONTROL_PROCEDENCIA = PREFIJO + "nacionalDropDownList"
 
 PROCEDENCIA_TODOS = "0"
+
 PROCEDENCIA_NACIONAL = "39"
 
 ESTADISTICAS = [
@@ -65,11 +66,13 @@ def a_numero(texto):
 
 
 def normalizar(texto):
+    """Texto sin tildes y en minúsculas, para comparar nombres."""
     texto = unicodedata.normalize("NFKD", texto or "")
     return "".join(c for c in texto if not unicodedata.combining(c)).lower().strip()
 
 
 def nombre_archivo(*partes):
+    """Une las partes en un nombre de archivo válido: "primera_feb", 2024 -> "primera-feb_2024"."""
     return "_".join(re.sub(r"[^a-z0-9]+", "-", normalizar(str(p))).strip("-") for p in partes)
 
 
@@ -93,6 +96,7 @@ def campos_formulario(soup):
 
 
 def opciones(soup, control):
+    """Opciones (valor, texto) de un desplegable de la página."""
     desplegable = soup.find("select", attrs={"name": control})
     if desplegable is None:
         return []
@@ -100,6 +104,7 @@ def opciones(soup, control):
 
 
 def objetivo_postback(soup, control):
+    """Nombre que la web espera para saber qué desplegable ha cambiado."""
     desplegable = soup.find("select", attrs={"name": control})
     onchange = desplegable.get("onchange", "") if desplegable else ""
     coincidencia = re.search(r"__doPostBack\(\\?'([^'\\]+)", onchange)
@@ -107,10 +112,12 @@ def objetivo_postback(soup, control):
 
 
 def fases_regulares(lista_opciones):
+    """Solo las fases de liga regular."""
     return [(valor, texto) for valor, texto in lista_opciones if "regular" in normalizar(texto)]
 
 
 def parsear_ranking(soup):
+    """Filas de jugador de una página del ranking: id, nombre, equipo y valores."""
     filas = []
     for enlace in soup.select("a[href*='Jugador.aspx']"):
         texto = " ".join(enlace.get_text(" ").split())
@@ -136,6 +143,7 @@ def parsear_ranking(soup):
 
 
 def enlaces_paginacion(soup):
+    """Enlaces a las páginas numeradas del ranking: (número, objetivo)."""
     objetivos = []
     for enlace in soup.find_all("a", href=True):
         coincidencia = re.match(r"javascript:__doPostBack\('([^']+)'", enlace["href"])
@@ -145,6 +153,7 @@ def enlaces_paginacion(soup):
 
 
 def enlace_siguiente_bloque(soup):
+    """Enlace que muestra el siguiente bloque de páginas, si existe."""
     paginador = []
     for enlace in soup.find_all("a", href=True):
         coincidencia = re.match(r"javascript:__doPostBack\('([^']+)'", enlace["href"])
@@ -159,6 +168,7 @@ def enlace_siguiente_bloque(soup):
 # --- Navegación ----------------------------------------------------------------------
 
 class PaginaFEB:
+    """Página de rankings de la FEB. Guarda el estado del formulario entre peticiones."""
 
     def __init__(self, cliente):
         self.cliente = cliente
@@ -166,14 +176,17 @@ class PaginaFEB:
         self.accion = None
 
     def _cargar(self, respuesta):
+        """Lee el HTML y la dirección a la que envía el formulario."""
         self.soup = BeautifulSoup(respuesta.text, "html.parser")
         formulario = self.soup.find("form")
         self.accion = urljoin(respuesta.url, formulario.get("action", "")) if formulario else respuesta.url
 
     def abrir(self, url):
+        """Carga la página inicial."""
         self._cargar(self.cliente.get_respuesta(url))
 
     def postback(self, objetivo, cambios=None):
+        """Envía el formulario como si el usuario cambiara un desplegable."""
         datos = campos_formulario(self.soup)
         datos.update(cambios or {})
         datos["__EVENTTARGET"] = objetivo
@@ -181,15 +194,18 @@ class PaginaFEB:
         self._cargar(self.cliente.post(self.accion, datos))
 
     def valor_actual(self, control):
+        """Valor elegido ahora en un desplegable."""
         return campos_formulario(self.soup).get(control)
 
     def elegir(self, control, valor):
+        """Elige un valor en un desplegable. Da error si la web no lo acepta."""
         if self.valor_actual(control) != valor:
             self.postback(objetivo_postback(self.soup, control), {control: valor})
         if self.valor_actual(control) != valor:
             raise RuntimeError(f"La web no aceptó {control} = {valor}")
 
     def todas_las_paginas(self, guardar_como=None):
+        """Lee todas las páginas del ranking. Con "guardar_como", guarda también el HTML."""
         filas = parsear_ranking(self.soup)
         pagina = 1
         if guardar_como:
@@ -202,6 +218,7 @@ class PaginaFEB:
             vistos = {f["id_feb"] for f in filas}
             self.postback(objetivo)
             nuevas = parsear_ranking(self.soup)
+            # **Si la página no trae jugadores nuevos, se ha llegado al final.**
             if not nuevas or {f["id_feb"] for f in nuevas} <= vistos:
                 break
             pagina += 1
@@ -214,6 +231,7 @@ class PaginaFEB:
 # --- Descarga ------------------------------------------------------------------------
 
 def valor_estadistica(soup, nombre):
+    """Valor del desplegable para una estadística, buscada por su nombre y estadisticas."""
     for valor, texto in opciones(soup, CONTROL_ESTADISTICA):
         if normalizar(texto) == normalizar(nombre):
             return valor
@@ -222,8 +240,7 @@ def valor_estadistica(soup, nombre):
 
 
 def descargar_temporada(cliente, competicion, temporada, estadisticas):
-    """Descarga los rankings de una temporada. Cada combinación se guarda en
-    data/raw/feb_partes y se salta si ya existe, para poder relanzar."""
+    """Descarga los rankings de una temporada. Cada combinación se guarda en data/raw/feb_partes y se salta si ya existe, para poder relanzar."""
     g, nm = COMPETICIONES[competicion]
     pagina = PaginaFEB(cliente)
     pagina.abrir(f"{BASE}/rankings.aspx?g={g}&t={temporada}&nm={nm}")
@@ -236,6 +253,7 @@ def descargar_temporada(cliente, competicion, temporada, estadisticas):
         return
 
     trabajos = [(e, PROCEDENCIA_TODOS) for e in estadisticas]
+    """Ranking de minutos solo de nacionales. Sirve para saber quién tiene pasaporte español."""
     trabajos.append(("Minutos jugados", PROCEDENCIA_NACIONAL))
 
     for valor_fase, texto_fase in fases:
@@ -257,6 +275,7 @@ def descargar_temporada(cliente, competicion, temporada, estadisticas):
 
 
 def unir_partes():
+    """Une todos los CSV de data/raw/feb_partes en data/raw/feb_rankings.csv."""
     partes = sorted(CARPETA_PARTES.glob("*.csv"))
     if not partes:
         return None
@@ -266,6 +285,7 @@ def unir_partes():
 
 
 def leer_temporadas(texto):
+    """Lista de años: "2010-2012" -> [2010, 2011, 2012] · "2010,2015" -> [2010, 2015]."""
     anios = []
     for trozo in texto.split(","):
         if "-" in trozo:
@@ -279,6 +299,7 @@ def leer_temporadas(texto):
 # --- Exploración -----------------------------------------------------------------------
 
 def explorar(cliente, competicion="primera_feb", temporada=2025):
+    """Muestra los desplegables y la primera página para revisar la web antes de descargar."""
     g, nm = COMPETICIONES[competicion]
     url = f"{BASE}/rankings.aspx?g={g}&t={temporada}&nm={nm}"
     pagina = PaginaFEB(cliente)
@@ -302,6 +323,7 @@ def explorar(cliente, competicion="primera_feb", temporada=2025):
 
 
 def main():
+    """Descarga los rankings de las competiciones y temporadas pedidas, uniéndolos en un CSV."""
     parser = argparse.ArgumentParser(description="Estadísticas de jugadores de la FEB")
     parser.add_argument("--explorar", action="store_true")
     parser.add_argument("--competicion", nargs="+", default=["primera_feb"], choices=COMPETICIONES)

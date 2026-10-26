@@ -16,6 +16,7 @@ ERRORES_TEMPORALES = {429, 500, 502, 503, 504}
 
 
 class ClienteHTTP:
+    """Hace las peticiones de todos los scrapers: con pausa, reintentos y caché."""
     def __init__(self, carpeta_cache, pausa=1.0, reintentos=3, timeout=25):
         self.carpeta_cache = Path(carpeta_cache)
         self.carpeta_cache.mkdir(parents=True, exist_ok=True)
@@ -24,6 +25,7 @@ class ClienteHTTP:
         self.timeout = timeout
         self._ultima_peticion = 0.0
 
+        """El correo va en el User-Agent para que la web pueda contactar. Se lee de .env."""
         contacto = os.getenv("CONTACTO_SCRAPER", "sin-contacto")
         self.sesion = requests.Session()
         self.sesion.headers.update({
@@ -32,20 +34,18 @@ class ClienteHTTP:
         })
 
     def _esperar_turno(self):
+        """Espera lo necesario para no hacer más de una petición."""
         transcurrido = time.monotonic() - self._ultima_peticion
         if transcurrido < self.pausa:
             time.sleep(self.pausa - transcurrido)
         self._ultima_peticion = time.monotonic()
 
     def ruta_cache(self, nombre):
+        """Ruta del fichero donde se guarda una página descargada."""
         return self.carpeta_cache / nombre
 
     def post(self, url, datos):
-        """POST con la misma pausa y reintentos que get(), sin caché.
-
-        Lo usan los formularios ASP.NET de la FEB: la respuesta depende del
-        estado del formulario, así que no se puede guardar por URL.
-        """
+        """POST con la misma pausa y reintentos que get(), sin caché. Lo usan los formularios ASP.NET de la FEB."""
         espera = 2.0
         for intento in range(1, self.reintentos + 1):
             self._esperar_turno()
@@ -73,10 +73,7 @@ class ClienteHTTP:
         return respuesta
 
     def get(self, url, nombre_cache=None):
-        """Devuelve el texto de la página, o None si no existe (404).
-
-        Si se indica nombre_cache y el fichero ya está en disco, no hay petición.
-        """
+        """Devuelve el texto de la página, o None si no existe (404). Si se indica nombre_cache y el fichero ya está en disco, no hay petición."""
         if nombre_cache:
             ruta = self.ruta_cache(nombre_cache)
             if ruta.exists():

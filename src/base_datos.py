@@ -1,3 +1,4 @@
+"""Crea la base de datos SQLite (data/scouting.db) a partir de los CSV."""
 
 import sqlite3
 from contextlib import closing
@@ -9,6 +10,7 @@ CARPETA_RAW = Path("data/raw")
 CARPETA_PROCESSED = Path("data/processed")
 RUTA_DB = Path("data/scouting.db")
 
+# Tablas con columnas fijas y relaciones entre ellas.
 ESQUEMA = """
 CREATE TABLE jugadores_acb (
     id_acb          TEXT PRIMARY KEY,
@@ -46,6 +48,7 @@ CREATE TABLE trayectorias_feb (
 );
 """
 
+# Tablas con columnas: se crean desde el CSV.
 TABLAS_ANCHAS = {
     "temporadas_acb": ("temporadas.csv", ["id_acb", "anio"]),
     "temporadas_acb_club": ("temporadas_por_club.csv", ["id_acb", "temporada", "club"]),
@@ -53,6 +56,7 @@ TABLAS_ANCHAS = {
     "dataset_modelo": ("dataset_modelo.csv", ["id_feb", "competicion", "temporada"]),
 }
 
+# Consultas guardadas que usan los cuadernos: año de debut en la ACB y si tiene pareja en la FEB.
 VISTAS = """
 CREATE VIEW v_debut_acb AS
 SELECT j.id_acb, j.licencia, j.es_jfl, MIN(t.anio) AS debut
@@ -72,12 +76,14 @@ COLUMNAS_JUGADORES_ACB = ["id_acb", "slug", "posicion", "altura_cm", "anio_nacim
 
 
 def leer_csv(ruta, **kwargs):
+    """Lee un CSV con los id como texto, para no perder ceros ni mezclar tipos."""
     return pd.read_csv(ruta, dtype={"id_acb": str, "id_feb": str}, **kwargs)
 
 
 def preparar_tablas():
     """Lee los CSV y los deja con las columnas de cada tabla."""
     temporadas_feb = leer_csv(CARPETA_PROCESSED / "feb_temporadas.csv")
+    # **Nombre de cada jugador según su temporada más reciente.**
     nombres = temporadas_feb.sort_values("temporada").groupby("id_feb")["jugador"].last()
 
     jugadores_feb = leer_csv(CARPETA_RAW / "feb_jugadores.csv")
@@ -109,7 +115,7 @@ def comprobar(conexion):
 
 
 def construir(ruta=RUTA_DB, tablas=None, anchas=None):
-    """Crea la base desde cero. tablas y anchas permiten pasar datos en las pruebas."""
+    """Crea la base desde cero."""
     tablas = tablas if tablas is not None else preparar_tablas()
     if anchas is None:
         anchas = {nombre: leer_csv(CARPETA_PROCESSED / archivo)
@@ -132,6 +138,7 @@ def construir(ruta=RUTA_DB, tablas=None, anchas=None):
 
 
 def main():
+    """Crea data/scouting.db y muestra las filas de cada tabla y las comprobaciones."""
     problemas = construir()
     with closing(sqlite3.connect(RUTA_DB)) as conexion:
         for (tabla,) in conexion.execute(

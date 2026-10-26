@@ -26,6 +26,7 @@ RE_TEMPORADA = re.compile(r"^\d{2}/\d{2}$")
 
 
 def enlaces_desde_cache(carpeta=CARPETA_RANKINGS, archivo=ARCHIVO_ENLACES):
+    """Enlaces a las fichas sacados de los rankings ya descargados. Se guardan en un CSV para no repetirlo."""
     
     if archivo.exists():
         tabla = pd.read_csv(archivo, dtype=str)
@@ -39,6 +40,7 @@ def enlaces_desde_cache(carpeta=CARPETA_RANKINGS, archivo=ARCHIVO_ENLACES):
 
 
 def _valor(soup, etiqueta):
+    """Valor que aparece junto a una etiqueta de la ficha ("Altura" o "Puesto"). Devuelve None si no se encuentra."""
     for nodo in soup.find_all(string=re.compile(rf"^\s*{re.escape(etiqueta)}\b")):
         resto = nodo.strip()[len(etiqueta):].strip(" :")
         if resto:
@@ -50,6 +52,7 @@ def _valor(soup, etiqueta):
 
 
 def parsear_ficha(html):
+    """Datos de la ficha (año de nacimiento, altura, puesto, nacionalidad...) y trayectoria por temporadas."""
     soup = BeautifulSoup(html, "html.parser")
     for etiqueta in soup(["script", "style", "noscript"]):
         etiqueta.decompose()
@@ -78,6 +81,7 @@ def parsear_ficha(html):
             if len(celdas) < 3 or not RE_TEMPORADA.match(celdas[0]):
                 continue
             licencia = celdas[3] if len(celdas) > 3 else ""
+            """Solo temporadas como jugador, no como entrenador."""
             if licencia and not licencia.lower().startswith("jugador"):
                 continue
             trayectoria.append({"temporada": celdas[0], "categoria": celdas[1], "club": celdas[2]})
@@ -86,6 +90,7 @@ def parsear_ficha(html):
 
 
 def main():
+    """Descarga las fichas y las guarda en data/raw/feb_jugadores.csv y feb_trayectorias.csv."""
     parser = argparse.ArgumentParser(description="Fichas de jugador de la FEB")
     parser.add_argument("--limite", type=int)
     parser.add_argument("--pausa", type=float, default=1.0)

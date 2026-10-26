@@ -12,6 +12,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 RUTA_MODELO = RAIZ / "models" / "modelo.joblib"
 RUTA_PREDICCIONES = RAIZ / "data" / "processed" / "predicciones.csv"
 
+# Última temporada con 3 años de ACB después para saber si se asentó.
 ULTIMA_TEMPORADA_ENTRENAMIENTO = 2022  
 
 VARIABLES_NUMERICAS = [
@@ -29,6 +30,7 @@ VARIABLES_BINARIAS = [
 ]
 VARIABLES = VARIABLES_NUMERICAS + VARIABLES_BINARIAS
 
+# Nombres legibles de las variables: para la app.
 NOMBRES = {
     "edad": "edad", "altura_cm": "altura", "partidos": "partidos jugados",
     "minutos": "minutos en la temporada", "minutos_partido": "minutos por partido",
@@ -58,6 +60,7 @@ GRUPO_DE_PUESTO = {"Base": "exterior", "Escolta": "exterior", "Alero": "alero",
 
 
 def puesto_normalizado(puesto):
+    """Se corrigen los puestos."""
     if not isinstance(puesto, str) or not puesto.strip():
         return None
     texto = unicodedata.normalize("NFKD", puesto.strip().lower())
@@ -76,10 +79,12 @@ def puesto_normalizado(puesto):
 
 
 def grupo_puesto(puesto):
+    """Exterior (base, escolta), alero o interior (ala-pívot, pívot)."""
     return GRUPO_DE_PUESTO.get(puesto_normalizado(puesto))
 
 
 def preparar_variables(tabla):
+    """Tabla con las 35 variables del modelo."""
     x = pd.DataFrame(index=tabla.index)
     for columna in VARIABLES_NUMERICAS:
         if columna == "triples_intentados_40":
@@ -97,6 +102,7 @@ def preparar_variables(tabla):
 
 
 def separar(tabla):
+    """Filas con objetivo (hasta 2022) para entrenar y filas sin objetivo (candidatos)."""
     etiquetadas = tabla[tabla["se_asienta"].notna()
                         & (tabla["temporada"] <= ULTIMA_TEMPORADA_ENTRENAMIENTO)].copy()
     etiquetadas["se_asienta"] = etiquetadas["se_asienta"].astype(int)
@@ -105,6 +111,8 @@ def separar(tabla):
 
 
 def captura_en_top(tabla, puntuacion, k=20):
+    """recall@k: qué parte de los que se asentaron está entre los "k" primeros de su temporada.
+    precision@k: qué parte de esos "k" primeros se asentó."""
     datos = tabla[["temporada", "se_asienta"]].assign(p=np.asarray(puntuacion))
     datos["puesto"] = datos.groupby("temporada")["p"].rank(ascending=False, method="first")
     lista = datos[datos["puesto"] <= k]
@@ -115,6 +123,7 @@ def captura_en_top(tabla, puntuacion, k=20):
 
 
 def evaluar(tabla, puntuacion, k=20):
+    """Métricas del modelo: PR-AUC, ROC-AUC, recall@k y precision@k."""
     y = tabla["se_asienta"]
     return {
         "PR-AUC": average_precision_score(y, puntuacion),
@@ -124,6 +133,7 @@ def evaluar(tabla, puntuacion, k=20):
 
 
 def guardar_modelo(modelo, nombre, metricas, ruta=RUTA_MODELO):
+    """Guarda el modelo con su nombre, sus variables y sus métricas."""
     ruta = Path(ruta)
     ruta.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump({"modelo": modelo, "nombre": nombre, "variables": VARIABLES,
@@ -131,17 +141,21 @@ def guardar_modelo(modelo, nombre, metricas, ruta=RUTA_MODELO):
 
 
 def cargar_modelo(ruta=RUTA_MODELO):
+    """Carga lo que guardó guardar_modelo."""
     return joblib.load(ruta)
 
 
 def _estimador_final(modelo):
+    """Último paso del Pipeline, sin el imputador ni el escalado."""
     return modelo.steps[-1][1] if hasattr(modelo, "steps") else modelo
 
 
 def contribuciones(modelo, x):
+    """Cuánto suma o resta cada variable a la predicción de cada fila."""
     final = _estimador_final(modelo)
     if hasattr(final, "coef_"):
         transformado = modelo[:-1].transform(x) if hasattr(modelo, "steps") else x.values
+        """Regresión logística: aporte = coeficiente x valor estandarizado."""
         valores = transformado * final.coef_[0]
     else:
         import warnings
@@ -160,6 +174,7 @@ def contribuciones(modelo, x):
 
 
 def describir(variable, valor):
+    """Texto del motivo con su valor: "edad (21)", "no: interior"."""
     nombre = NOMBRES.get(variable, variable)
     if variable in VARIABLES_BINARIAS:
         return nombre if valor == 1 else f"no: {nombre}"
@@ -170,8 +185,10 @@ def describir(variable, valor):
 
 
 def explicar(contribucion, valores=None, n=3):
+    """Las "n" variables que más suben y más bajan la probabilidad de un jugador."""
     orden = contribucion.sort_values()
     if valores is not None:
+        # Una variable sin dato no es un motivo del jugador.
         orden = orden[valores.reindex(orden.index).notna()]
     orden = orden[[not v.endswith("_falta") for v in orden.index]]
     texto = (lambda v: describir(v, valores[v])) if valores is not None else (lambda v: NOMBRES.get(v, v))

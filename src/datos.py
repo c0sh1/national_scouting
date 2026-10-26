@@ -1,3 +1,5 @@
+"""Lectura de datos para los cuadernos y la aplicación."""
+
 
 import sqlite3
 from contextlib import closing

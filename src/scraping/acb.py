@@ -64,10 +64,12 @@ def anio_inicio(temporada_corta):
 # --- Lista de jugadores -------------------------------------------------------
 
 def _locs(xml):
+    """Direcciones (<loc>) que aparecen en un sitemap."""
     return re.findall(r"<loc>\s*([^<\s]+)\s*</loc>", xml)
 
 
 def listar_jugadores(cliente):
+    """Todos los jugadores del sitemap de acb.com: id, slug y url de su ficha."""
     indice = cliente.get(SITEMAP_JUGADORES, "sitemap_indice.xml")
     if not indice:
         raise RuntimeError("No se pudo leer el sitemap de jugadores de acb.com")
@@ -91,6 +93,7 @@ def listar_jugadores(cliente):
 # --- Parsers --------------------------------------------------------------------
 
 def _texto(celda):
+    """Texto de una celda, sin espacios ni saltos de línea de más."""
     return " ".join(celda.get_text(" ").split())
 
 
@@ -149,6 +152,7 @@ def parsear_ficha(html):
 # --- Descarga -------------------------------------------------------------------
 
 def descargar(cliente, jugadores, temporada_minima=TEMPORADA_MINIMA):
+    """Descarga temporadas y ficha de cada jugador. Se salta a los que no jugaron desde temporada_minima."""
     filas_temporadas, filas_jugadores = [], []
 
     for n, jugador in enumerate(jugadores, start=1):
@@ -174,6 +178,7 @@ def descargar(cliente, jugadores, temporada_minima=TEMPORADA_MINIMA):
 
 
 def main():
+    """Descarga todo y lo guarda en data/raw/acb_jugadores.csv y acb_temporadas.csv."""
     parser = argparse.ArgumentParser(description="Descarga jugadores y temporadas de acb.com")
     parser.add_argument("--limite", type=int, help="procesar solo los N primeros jugadores")
     parser.add_argument("--pausa", type=float, default=1.0, help="segundos entre peticiones")
