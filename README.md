@@ -174,7 +174,7 @@ Cuaderno `notebooks/03_modelo.ipynb`; código común en `src/modelo.py`.
 
 ![Candidatos](docs/candidatos.png)
 
-![Ficha y gráfico de araña](docs/ficha.png)
+![Comparables históricos](docs/comparables.png)
 
 ![Evaluar un jugador](docs/evaluar.png)
 
