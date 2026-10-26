@@ -42,13 +42,14 @@ COMPETICIONES = {"primera_feb": "Primera FEB", "segunda_feb": "Segunda FEB", "li
 
 @st.cache_resource
 def modelo():
-    """Modelo entrenado en el cuaderno 03. Se carga una sola vez por sesión"""
+    """Modelo entrenado en el cuaderno 03. Se carga una sola vez por sesión del servidor."""
     return cargar_modelo()
 
 
 @st.cache_data
 def predicciones():
-    """Predicciones de los candidatos 2023-2025, con el puesto normalizado para no mostrar a menores de edad."""
+    """Predicciones de los candidatos 2023-2025, con el puesto normalizado y sin
+    nacidos después de ANIO_NACIMIENTO_MAXIMO, para no mostrar a menores de edad."""
     tabla = pd.read_csv(RUTA_PREDICCIONES, dtype={"id_feb": str})
     tabla["anio_nacimiento"] = tabla["temporada"] - tabla["edad"]
     tabla["puesto"] = tabla["puesto"].map(puesto_normalizado).fillna("")
@@ -57,14 +58,15 @@ def predicciones():
 
 @st.cache_data
 def historico():
-    """Filas con desenlace conocido (2005-2022)"""
+    """Filas con desenlace conocido (2005-2022): base de los comparables."""
     etiquetadas, _ = separar(cargar_datos("dataset_modelo"))
     return etiquetadas
 
 
 @st.cache_data
 def temporadas_feb():
-    """Todas las temporadas FEB con edad y puesto de la ficha, para la evolución del jugador y la Liga U. También quita a los menores de 19 años"""
+    """Todas las temporadas FEB con edad y puesto de la ficha, para la evolución del
+    jugador y la Liga U. También quita a los nacidos después de ANIO_NACIMIENTO_MAXIMO."""
     tabla = cargar_datos("temporadas_feb")
     fichas = cargar_datos("jugadores_feb")[["id_feb", "anio_nacimiento", "altura_cm", "puesto"]]
     tabla = tabla.merge(fichas, on="id_feb", how="left")
@@ -79,7 +81,8 @@ RASGOS_COMPARABLES = ["edad", "minutos_partido", "puntos_40", "rebotes_40", "asi
 
 def comparables(jugador, n=10):
     """Las n temporadas FEB de 2005-2022 con el perfil más parecido al del jugador
-    (edad, minutos y producción por 40, estandarizados), con su desenlace en la ACB."""
+    (edad, minutos y producción por 40, estandarizados), con su desenlace en la ACB.
+    Los rasgos que el jugador no tenga no cuentan en la distancia."""
     base = historico()
     matriz = base[RASGOS_COMPARABLES].astype(float)
     media, desviacion = matriz.mean(), matriz.std().replace(0, 1)
@@ -91,7 +94,8 @@ def comparables(jugador, n=10):
 
 
 def mostrar_comparables(jugador):
-    """Tabla de comparables del jugador y cuántos de ellos se asentaron. También los devuelve para poder elegir uno en el gráfico de araña."""
+    """Tabla de comparables del jugador y cuántos de ellos se asentaron.
+    Devuelve los comparables para poder elegir uno en el gráfico de araña."""
     cercanos = comparables(jugador)
     st.dataframe(cercanos.assign(competicion=cercanos["competicion"].map(COMPETICIONES),
                                  se_asento=cercanos["se_asienta"].map({1: "Sí", 0: "No"}))[
@@ -118,7 +122,8 @@ def referencia_radar():
 
 
 def grupo_de_comparacion(fila):
-    """Con quién se compara al jugador: su posición y su liga, o toda la liga si la ficha no tiene posición."""
+    """Con quién se compara al jugador: su posición y su liga, o toda la liga si
+    la ficha no tiene posición."""
     posicion = grupo_puesto(fila.get("puesto"))
     liga = COMPETICIONES[fila["competicion"]]
     plural = {"exterior": "exteriores", "alero": "aleros", "interior": "interiores"}
@@ -142,7 +147,7 @@ def percentiles(fila):
 
 
 def grafico_radar(perfiles):
-    """perfiles: lista de etiqueta, percentiles, color."""
+    """perfiles: lista de (etiqueta, percentiles, color). Un eje sin dato se dibuja en 0."""
     angulos = np.linspace(0, 2 * np.pi, len(EJES_RADAR), endpoint=False).tolist()
     fig, ax = plt.subplots(figsize=(6, 6), subplot_kw={"polar": True})
     for etiqueta, valores, color in perfiles:
@@ -162,7 +167,9 @@ POSICIONES = {"exterior": "Exterior (base / escolta)", "alero": "Alero", "interi
 
 
 def filtro_posicion(columna, clave):
-    """Selector de posición. La ficha FEB escribe el puesto de muchas formas, y se agrupa en exterior / alero / interior / sin dato."""
+    """Selector de posición. La ficha FEB escribe el puesto de muchas formas
+    ("Ala-Pívot", "A-Pívot", "Pivot"...) y falta en muchos jugadores, así que
+    se agrupa en exterior / alero / interior / sin dato."""
     return columna.multiselect("Posición", list(POSICIONES), default=list(POSICIONES),
                                format_func=POSICIONES.get, key=clave)
 
@@ -383,8 +390,12 @@ with pestanas[2]:
                                                            index=subidos.index))
             contrib = contribuciones(datos_modelo["modelo"], x)
             subidos["lo_que_mas_suma"] = [", ".join(explicar(contrib.loc[i], x.loc[i])[0]) for i in subidos.index]
-            st.dataframe(subidos.sort_values("probabilidad", ascending=False), hide_index=True,
-                         width="stretch")
+            primeras = [c for c in ["jugador", "probabilidad", "lo_que_mas_suma"] if c in subidos]
+            st.dataframe(subidos.sort_values("probabilidad", ascending=False)[
+                primeras + [c for c in subidos.columns if c not in primeras]], hide_index=True, width="stretch",
+                column_config={"probabilidad": st.column_config.ProgressColumn(
+                    "Probabilidad (%)", min_value=0, max_value=100, format="%.1f"),
+                    "lo_que_mas_suma": "Lo que más suma", "jugador": "Jugador"})
 
             st.subheader("Comparar un jugador del CSV")
             nombres = subidos["jugador"].astype(str) if "jugador" in subidos else subidos.index.astype(str)
