@@ -1,0 +1,9 @@
+jugador,competicion,edad,altura_cm,puesto,partidos,minutos_partido,puntos_40,rebotes_40,asistencias_40,valoracion_40,t3_pct,es_nacional_feb
+Jugador Ejemplo 1,primera_feb,20,198,Alero,32,26.5,21.0,8.0,3.5,22.0,38.0,1
+Jugador Ejemplo 2,primera_feb,22,186,Base,30,24.0,16.5,4.5,7.5,18.5,35.0,1
+Jugador Ejemplo 3,primera_feb,29,205,Pívot,34,22.0,17.0,11.5,1.5,21.0,,0
+Jugador Ejemplo 4,segunda_feb,19,201,Ala-Pívot,28,21.0,19.5,10.5,2.0,20.0,31.0,1
+Jugador Ejemplo 5,segunda_feb,24,192,Escolta,33,28.0,24.0,5.5,3.0,19.0,39.0,1
+Jugador Ejemplo 6,segunda_feb,27,190,Escolta,26,15.0,12.0,4.0,2.5,9.5,30.0,0
+Jugador Ejemplo 7,primera_feb,21,208,Pívot,25,14.5,15.0,12.0,1.0,17.0,,1
+Jugador Ejemplo 8,segunda_feb,18,183,Base,20,12.0,10.5,3.5,6.0,10.0,28.0,1

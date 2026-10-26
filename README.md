@@ -180,10 +180,10 @@ al final.
   jugadores de su misma posición y liga, que permite compararlo con otro jugador.
 - **Evaluar un jugador:** formulario manual o subida de un CSV (con plantilla
   descargable) para jugadores que no están en la base; devuelve probabilidad,
-  motivos, comparación con la media histórica y comparables.
+  motivos, comparación con la media histórica y comparables. Para probarlo hay
+  un CSV de ejemplo con jugadores inventados en `docs/jugadores_ejemplo.csv`.
 - **Liga U:** ranking descriptivo (solo hay una temporada, sin desenlace aún).
 - **Sobre el modelo:** métricas y limitaciones.
-
 ![Candidatos](docs/candidatos.png)
 
 ![Comparables históricos](docs/comparables.png)
@@ -267,7 +267,7 @@ tests/                     pruebas (pytest)
 data/raw/                  datos tal como se extraen
 data/processed/            datos limpios, informes de calidad y predicciones
 models/modelo.joblib       modelo entrenado
-docs/                      capturas
+docs/                      capturas y CSV de ejemplo para Evaluar un jugador
 .env.example               variables de entorno necesarias, sin valores reales
 ```
 
