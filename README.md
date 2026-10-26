@@ -43,10 +43,13 @@ Recopilación propia por web scraping; no hay API pública con estos datos.
   de la FEB prohíbe el uso comercial. Este es un proyecto académico, sin fines
   comerciales. El scraper hace una petición por segundo y se identifica con un
   correo de contacto (variable `CONTACTO_SCRAPER` en `.env`).
-- **Datos personales:** solo nombre y año de nacimiento de jugadores
-  profesionales con estadísticas públicas. No se guarda fecha ni lugar de
-  nacimiento, ni cargos que no sean de jugador. La aplicación no muestra
-  perfiles de menores de edad.
+- **Datos personales:** solo nombre y año de nacimiento de jugadores con
+  estadísticas públicas en acb.com y la FEB. No se guarda fecha ni lugar de
+  nacimiento, ni cargos que no sean de jugador. Los datos del repositorio se
+  dejan tal como se publican en origen, por lo que incluyen a jugadores
+  nacidos en 2008 o después (sobre todo de Liga U); la aplicación los filtra y
+  solo muestra a nacidos hasta 2007, así que no enseña perfiles de menores de
+  edad.
 - **Sin identificador común** entre las dos webs: los jugadores se cruzan por año
   de nacimiento y nombre (`src/emparejar.py`), con 756 parejas. Los homónimos
   dudosos no se emparejan.
@@ -281,3 +284,5 @@ docs/                      capturas
   2005-2016 al 3 % en 2017-2022.
 - Gráficos de tiro por zona, que necesitarían datos por lanzamiento que hoy no
   son públicos.
+- Quitar también de los datos publicados a los nacidos en 2008 o después, y no
+  solo de la aplicación.
