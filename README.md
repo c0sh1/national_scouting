@@ -134,17 +134,26 @@ Cuaderno `notebooks/03_modelo.ipynb`; código común en `src/modelo.py`.
   que la tasa de positivos), ROC-AUC y recall@20 (qué parte de los que se
   asientan está entre los 20 primeros de cada temporada).
 
-| Prueba 2019-2022 | PR-AUC | ROC-AUC | recall@20 |
-|---|---|---|---|
-| **Regresión logística (elegida)** | **0,212** | 0,857 | 0,31 |
-| Línea base: minutos | 0,117 | 0,716 | 0,24 |
-| Línea base: valoración por 40 | 0,082 | 0,696 | 0,12 |
-| Al azar | 0,033 | 0,500 | — |
+Se elige el modelo con la PR-AUC de validación; la prueba se mira una sola vez,
+al final.
+
+| Modelo | PR-AUC validación | PR-AUC prueba | ROC-AUC prueba | recall@20 prueba |
+|---|---|---|---|---|
+| Red neuronal (MLP) | 0,335 | 0,204 | 0,864 | 0,28 |
+| **Regresión logística (elegida)** | **0,299** | **0,212** | 0,857 | 0,31 |
+| LightGBM ajustado con Optuna | 0,279 | 0,249 | 0,875 | 0,33 |
+| LightGBM sin ajustar | 0,210 | 0,254 | 0,875 | 0,33 |
+| Random forest | 0,189 | 0,207 | 0,836 | 0,31 |
+| Línea base: valoración por 40 | 0,220 | 0,082 | 0,696 | 0,12 |
+| Línea base: minutos | 0,058 | 0,117 | 0,716 | 0,24 |
+| Al azar | 0,033 | 0,033 | 0,500 | — |
 
 - **Por qué la regresión logística:** es la mejor de los modelos explicables en
-  validación. La red neuronal queda a su altura en validación y por debajo en
-  prueba; con tan pocos positivos los modelos complejos no mejoran de forma
-  consistente, y la logística da una explicación exacta de cada predicción.
+  validación. La red neuronal saca algo más en validación, pero con 25
+  positivos esa diferencia no es fiable, y en prueba queda por debajo. En prueba
+  LightGBM queda un poco por encima (0,254 frente a 0,212), pero con 58
+  positivos la diferencia está dentro del margen de error, y la logística
+  explica cada predicción de forma exacta.
 - **Subgrupo con pasaporte español:** PR-AUC 0,214 frente a 0,088 de la línea
   base de minutos.
 - **Lo que más pesa (SHAP):** jugar en Primera FEB, la edad, los puntos por 40
@@ -182,11 +191,23 @@ Cuaderno `notebooks/03_modelo.ipynb`; código común en `src/modelo.py`.
 
 Requisitos: Python 3.11 o superior.
 
-```bash
+Windows (PowerShell):
+
+```powershell
 git clone https://github.com/c0sh1/national_scouting
 cd national_scouting
 python -m venv .venv
 .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Linux y macOS:
+
+```bash
+git clone https://github.com/c0sh1/national_scouting
+cd national_scouting
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -204,7 +225,8 @@ python -m pytest
 ```
 
 **Repetir todo el proceso desde cero** (opcional; la descarga completa lleva
-varias horas). Antes, copiar `.env.example` a `.env` y poner un correo en
+varias horas). Antes, copiar `.env.example` a `.env` (`copy .env.example .env` en
+Windows, `cp .env.example .env` en Linux y macOS) y poner un correo en
 `CONTACTO_SCRAPER`.
 
 ```bash
