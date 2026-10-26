@@ -204,8 +204,8 @@ python -m pytest
 ```
 
 **Repetir todo el proceso desde cero** (opcional; la descarga completa lleva
-varias horas). Antes, crear un archivo `.env` en la raíz con la línea
-`CONTACTO_SCRAPER=tu_correo@ejemplo.com`.
+varias horas). Antes, copiar `.env.example` a `.env` y poner un correo en
+`CONTACTO_SCRAPER`.
 
 ```bash
 python -m src.scraping.acb
@@ -243,6 +243,7 @@ data/raw/                  datos tal como se extraen
 data/processed/            datos limpios, informes de calidad y predicciones
 models/modelo.joblib       modelo entrenado
 docs/                      capturas
+.env.example               variables de entorno necesarias, sin valores reales
 ```
 
 ## 8. Qué mejoraría con más tiempo
